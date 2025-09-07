@@ -4,6 +4,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AutenticacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PacienteController;
+use App\Http\Controllers\EstudioController;
+use App\Http\Controllers\RedSocialController;
+use App\Http\Controllers\ConsultorioController;
 use App\Http\Controllers\CitaController;
 use App\Http\Controllers\TratamientoController;
 use App\Http\Controllers\TransaccionController;
@@ -28,7 +31,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/{paciente}', [PacienteController::class, 'mostrarDetalle'])->name('detalle');
         Route::put('/{paciente}', [PacienteController::class, 'actualizarExistente'])->name('actualizar');
         Route::delete('/{paciente}', [PacienteController::class, 'eliminarRegistro'])->name('eliminar');
-
         Route::get('/{paciente}/tratamientos', [TratamientoController::class, 'mostrarTodos'])->name('tratamientos.todos');
         Route::post('/{paciente}/tratamientos', [TratamientoController::class, 'guardarNuevo'])->name('tratamientos.guardar');
     });
@@ -60,6 +62,20 @@ Route::middleware('auth')->group(function () {
         Route::post('/{notificacion}/leer', [NotificacionController::class, 'marcarComoLeida'])->name('leer');
         Route::post('/leer-todas', [NotificacionController::class, 'marcarTodasComoLeidas'])->name('leer-todas');
     });
-    
-    Route::post('/gemini/procesar', [GeminiController::class, 'procesarPeticion'])->name('gemini.procesar');
+
+    Route::prefix('perfil')->name('perfil.')->group(function () {
+        Route::post('/estudios', [EstudioController::class, 'guardarNuevo'])->name('estudios.guardar');
+        Route::delete('/estudios/{estudio}', [EstudioController::class, 'eliminarRegistro'])->name('estudios.eliminar');
+        
+        Route::post('/redes-sociales', [RedSocialController::class, 'guardarNueva'])->name('redes.guardar');
+        Route::delete('/redes-sociales/{redSocial}', [RedSocialController::class, 'eliminarRegistro'])->name('redes.eliminar');
+
+        Route::post('/consultorios', [ConsultorioController::class, 'guardarNuevo'])->name('consultorios.guardar');
+        Route::delete('/consultorios/{consultorio}', [ConsultorioController::class, 'eliminarRegistro'])->name('consultorios.eliminar');
+    });
+
+    Route::prefix('gemini')->name('gemini.')->group(function () {
+        Route::post('/generar-imagen', [GeminiController::class, 'generarImagen'])->name('generar-imagen');
+        Route::post('/generar-respuesta', [GeminiController::class, 'generarRespuesta'])->name('generar-respuesta');
+    });
 });
