@@ -13,6 +13,7 @@ use App\Http\Controllers\TransaccionController;
 use App\Http\Controllers\HorarioController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\GeminiController;
+use App\Http\Controllers\ApiController;
 
 Route::get('/iniciar-sesion', [AutenticacionController::class, 'mostrarInicioSesion'])->name('login');
 Route::post('/iniciar-sesion', [AutenticacionController::class, 'iniciarSesion']);
@@ -64,6 +65,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('perfil')->name('perfil.')->group(function () {
+        Route::get('/', [AutenticacionController::class, 'mostrarPerfil'])->name('mostrar');
+        Route::put('/actualizar', [AutenticacionController::class, 'actualizarPerfil'])->name('actualizar');
+        
         Route::post('/estudios', [EstudioController::class, 'guardarNuevo'])->name('estudios.guardar');
         Route::delete('/estudios/{estudio}', [EstudioController::class, 'eliminarRegistro'])->name('estudios.eliminar');
         
@@ -77,5 +81,13 @@ Route::middleware('auth')->group(function () {
     Route::prefix('gemini')->name('gemini.')->group(function () {
         Route::post('/generar-imagen', [GeminiController::class, 'generarImagen'])->name('generar-imagen');
         Route::post('/generar-respuesta', [GeminiController::class, 'generarRespuesta'])->name('generar-respuesta');
+    });
+
+    Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/pacientes', [ApiController::class, 'pacientes'])->name('pacientes');
+        Route::get('/pacientes/{id}', [ApiController::class, 'paciente'])->name('paciente');
+        Route::get('/tratamientos', [ApiController::class, 'tratamientos'])->name('tratamientos');
+        Route::get('/tratamientos/{id}', [ApiController::class, 'tratamiento'])->name('tratamiento');
+        Route::get('/dashboard/stats', [ApiController::class, 'estadisticasDashboard'])->name('dashboard.stats');
     });
 });

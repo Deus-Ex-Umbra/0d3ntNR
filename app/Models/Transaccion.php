@@ -9,6 +9,8 @@ class Transaccion extends Model
 {
     use HasFactory;
 
+    protected $table = 'transacciones';
+
     protected $fillable = [
         'usuario_id',
         'paciente_id',

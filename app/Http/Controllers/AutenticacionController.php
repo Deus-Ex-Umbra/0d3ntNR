@@ -20,12 +20,14 @@ class AutenticacionController extends Controller
     {
         $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
+            'apellido' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:'.Usuario::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $usuario = Usuario::create([
             'nombre' => $request->nombre,
+            'apellido' => $request->apellido,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -66,5 +68,29 @@ class AutenticacionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect('/iniciar-sesion');
+    }
+
+    public function actualizarPerfil(Request $request)
+    {
+        $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'apellido' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:usuarios,email,' . Auth::id()],
+            'biografia' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $usuario = Auth::user();
+        $usuario->update([
+            'nombre' => $request->nombre,
+            'apellido' => $request->apellido,
+            'email' => $request->email,
+        ]);
+
+        return response()->json(['message' => 'Perfil actualizado exitosamente']);
+    }
+
+    public function mostrarPerfil()
+    {
+        return view('perfil.configuracion');
     }
 }
