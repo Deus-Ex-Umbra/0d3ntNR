@@ -17,7 +17,7 @@ class PacienteController extends Controller
 
     public function mostrarFormularioCreacion()
     {
-        return view('pacientes.crear');
+        return view('pacientes.crear', compact('paciente'));
     }
 
     public function guardarNuevo(Request $request)

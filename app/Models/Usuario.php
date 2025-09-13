@@ -59,4 +59,14 @@ class Usuario extends Authenticatable
     {
         return $this->hasMany(Notificacion::class);
     }
+
+    public function consultorios()
+    {
+        return $this->hasMany(Consultorio::class);
+    }
+    
+    public function redesSociales()
+    {
+        return $this->hasMany(RedSocial::class);
+    }
 }

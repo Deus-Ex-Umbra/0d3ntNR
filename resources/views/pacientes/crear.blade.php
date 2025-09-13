@@ -247,12 +247,12 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="edit_nombre" class="block text-sm font-medium text-dark-text mb-2">Nombre</label>
-                    <input type="text" id="edit_nombre" name="nombre" value="{{ $paciente->nombre }}" required 
+                    <input type="text" id="edit_nombre" name="nombre" value="{{ $paciente->nombre ?? '' }}" required 
                            class="w-full px-3 py-2 bg-dark-bg border border-gray-600 rounded-lg focus:outline-none focus:border-primary-500">
                 </div>
                 <div>
                     <label for="edit_apellido" class="block text-sm font-medium text-dark-text mb-2">Apellido</label>
-                    <input type="text" id="edit_apellido" name="apellido" value="{{ $paciente->apellido }}" required 
+                    <input type="text" id="edit_apellido" name="apellido" value="{{ $paciente->apellido ?? '' }}" required 
                            class="w-full px-3 py-2 bg-dark-bg border border-gray-600 rounded-lg focus:outline-none focus:border-primary-500">
                 </div>
             </div>
