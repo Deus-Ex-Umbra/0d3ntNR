@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: 0d3ntNR_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: 0d3ntNR
+      POSTGRES_USER: deus_umbra
+      POSTGRES_PASSWORD: B4phy_B4lph0m3t
+    ports:
+      - "5432:5432"
+    volumes:
+      - 0d3ntNR_data:/var/lib/postgresql/data
+    networks:
+      - 0d3ntNR_network
+
+volumes:
+  0d3ntNR_data:
+
+networks:
+  0d3ntNR_network:
+    name: 0d3ntNR_network
+    driver: bridge
