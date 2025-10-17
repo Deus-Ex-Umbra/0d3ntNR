@@ -22,8 +22,13 @@ export class AutenticacionServicio {
 
   async iniciarSesion(usuario: any) {
     const payload = { correo: usuario.correo, sub: usuario.id };
+    const usuario_datos = await this.usuarios_servicio.encontrarPorId(
+      usuario.id,
+    );
+
     return {
       token_acceso: this.jwt_servicio.sign(payload),
+      usuario: usuario_datos,
     };
   }
 

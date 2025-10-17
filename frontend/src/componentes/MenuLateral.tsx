@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { cn } from '@/lib/utilidades';
+import { Button } from '@/componentes/ui/button';
 
 interface ItemMenu {
   icono: React.ElementType;
@@ -39,55 +40,60 @@ export function MenuLateral() {
   };
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-950">
-      <div className="border-b border-slate-800 p-6">
-        <h1 className="text-2xl font-bold text-slate-100">DentalApp</h1>
-        <p className="mt-1 text-sm text-slate-400">Gestión Odontológica</p>
+    <div className="flex h-screen w-64 flex-col sidebar-desktop">
+      <div className="border-b border-border p-6">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary" />
+          <div>
+            <h1 className="text-xl font-bold text-foreground">DentalApp</h1>
+            <p className="text-xs text-muted-foreground">Gestión Odontológica</p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-3">
         <nav className="space-y-1">
           {items_menu.map((item) => {
             const Icono = item.icono;
             const activo = ubicacion.pathname === item.ruta;
             
             return (
-              <button
+              <Button
                 key={item.ruta}
-                onClick={() => navegar(item.ruta)}
+                variant={activo ? 'secondary' : 'ghost'}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  activo
-                    ? 'bg-slate-800 text-slate-100'
-                    : 'text-slate-400 hover:bg-slate-900 hover:text-slate-300'
+                  'w-full justify-start gap-3 h-11',
+                  activo && 'bg-secondary text-secondary-foreground'
                 )}
+                onClick={() => navegar(item.ruta)}
               >
                 <Icono className="h-5 w-5" />
                 <span>{item.etiqueta}</span>
-              </button>
+              </Button>
             );
           })}
         </nav>
       </div>
 
-      <div className="border-t border-slate-800 p-4">
-        <div className="mb-3 flex items-center gap-3 rounded-lg bg-slate-900 p-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-slate-100">
+      <div className="border-t border-border p-3 space-y-2">
+        <div className="flex items-center gap-3 rounded-lg bg-secondary/50 p-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
             {usuario?.nombre.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="truncate text-sm font-medium text-slate-200">{usuario?.nombre}</p>
-            <p className="truncate text-xs text-slate-500">{usuario?.correo}</p>
+            <p className="truncate text-sm font-medium text-foreground">{usuario?.nombre}</p>
+            <p className="truncate text-xs text-muted-foreground">{usuario?.correo}</p>
           </div>
         </div>
         
-        <button
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10"
           onClick={manejarCerrarSesion}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-300"
         >
           <LogOut className="h-5 w-5" />
           <span>Cerrar Sesión</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

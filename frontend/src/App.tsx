@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProveedorAutenticacion, useAutenticacion } from './contextos/autenticacion-contexto';
 import InicioSesion from './paginas/InicioSesion';
-import Registro from './paginas/Registro';
-import Inicio from './paginas/Inicio';
+import Registro from './paginas/registro';
+import Inicio from './paginas/inicio';
 import { Loader2 } from 'lucide-react';
 
 function RutaProtegida({ children }: { children: React.ReactNode }) {
@@ -10,8 +10,8 @@ function RutaProtegida({ children }: { children: React.ReactNode }) {
 
   if (cargando) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -28,8 +28,8 @@ function RutaPublica({ children }: { children: React.ReactNode }) {
 
   if (cargando) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
