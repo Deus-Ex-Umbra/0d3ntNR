@@ -1,35 +1,80 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ProveedorAutenticacion, useAutenticacion } from './contextos/autenticacion-contexto';
+import InicioSesion from './paginas/InicioSesion';
+import Registro from './paginas/Registro';
+import Inicio from './paginas/Inicio';
+import { Loader2 } from 'lucide-react';
 
-function App() {
-  const [count, setCount] = useState(0)
+function RutaProtegida({ children }: { children: React.ReactNode }) {
+  const { usuario, cargando } = useAutenticacion();
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+  if (cargando) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    );
+  }
+
+  if (!usuario) {
+    return <Navigate to="/inicio-sesion" replace />;
+  }
+
+  return <>{children}</>;
 }
 
-export default App
+function RutaPublica({ children }: { children: React.ReactNode }) {
+  const { usuario, cargando } = useAutenticacion();
+
+  if (cargando) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (usuario) {
+    return <Navigate to="/inicio" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function App() {
+  return (
+    <ProveedorAutenticacion>
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/inicio-sesion"
+            element={
+              <RutaPublica>
+                <InicioSesion />
+              </RutaPublica>
+            }
+          />
+          <Route
+            path="/registro"
+            element={
+              <RutaPublica>
+                <Registro />
+              </RutaPublica>
+            }
+          />
+          <Route
+            path="/inicio"
+            element={
+              <RutaProtegida>
+                <Inicio />
+              </RutaProtegida>
+            }
+          />
+          <Route path="/" element={<Navigate to="/inicio" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ProveedorAutenticacion>
+  );
+}
+
+export default App;

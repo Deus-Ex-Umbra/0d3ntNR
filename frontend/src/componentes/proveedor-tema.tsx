@@ -1,65 +1,66 @@
+import type { ReactNode } from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 
-type ThemeProviderProps = {
-  children: React.ReactNode
-  defaultTheme?: string
-  storageKey?: string
+type PropiedadesProveedorTema = {
+  children: ReactNode
+  tema_por_defecto?: string
+  clave_almacenamiento?: string
 }
 
-type ThemeProviderState = {
-  theme: string
-  setTheme: (theme: string) => void
+type EstadoProveedorTema = {
+  tema: string
+  establecerTema: (tema: string) => void
 }
 
-const initialState: ThemeProviderState = {
-  theme: "system",
-  setTheme: () => null,
+const estado_inicial: EstadoProveedorTema = {
+  tema: "system",
+  establecerTema: () => null,
 }
 
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
+const ContextoProveedorTema = createContext<EstadoProveedorTema>(estado_inicial)
 
-export function ThemeProvider({
+export function ProveedorTema({
   children,
-  defaultTheme = "system",
-  storageKey = "vite-ui-theme",
+  tema_por_defecto = "system",
+  clave_almacenamiento = "vite-ui-theme",
   ...props
-}: ThemeProviderProps) {
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem(storageKey) || defaultTheme
+}: PropiedadesProveedorTema) {
+  const [tema, setTema] = useState(
+    () => localStorage.getItem(clave_almacenamiento) || tema_por_defecto
   )
 
   useEffect(() => {
     const root = window.document.documentElement
     root.classList.remove("light", "dark")
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+    if (tema === "system") {
+      const tema_sistema = window.matchMedia("(prefers-color-scheme: dark)")
         .matches
         ? "dark"
         : "light"
-      root.classList.add(systemTheme)
+      root.classList.add(tema_sistema)
       return
     }
-    root.classList.add(theme)
-  }, [theme])
+    root.classList.add(tema)
+  }, [tema])
 
-  const value = {
-    theme,
-    setTheme: (theme: string) => {
-      localStorage.setItem(storageKey, theme)
-      setTheme(theme)
+  const valor = {
+    tema,
+    establecerTema: (tema: string) => {
+      localStorage.setItem(clave_almacenamiento, tema)
+      setTema(tema)
     },
   }
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ContextoProveedorTema.Provider {...props} value={valor}>
       {children}
-    </ThemeProviderContext.Provider>
+    </ContextoProveedorTema.Provider>
   )
 }
 
-export const useTheme = () => {
-  const context = useContext(ThemeProviderContext)
-  if (context === undefined)
-    throw new Error("useTheme must be used within a ThemeProvider")
-  return context
+export const usarTema = () => {
+  const contexto = useContext(ContextoProveedorTema)
+  if (contexto === undefined)
+    throw new Error("usarTema debe ser usado dentro de ProveedorTema")
+  return contexto
 }
