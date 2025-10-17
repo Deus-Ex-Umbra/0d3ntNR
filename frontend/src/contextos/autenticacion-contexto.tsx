@@ -14,6 +14,7 @@ interface AutenticacionContexto {
   iniciarSesion: (correo: string, contrasena: string) => Promise<void>;
   cerrarSesion: () => void;
   registrar: (nombre: string, correo: string, contrasena: string) => Promise<void>;
+  actualizarUsuario: (datos: Partial<Usuario>) => void;
 }
 
 const AutenticacionContexto = createContext<AutenticacionContexto | undefined>(undefined);
@@ -29,13 +30,17 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
   const cargarUsuario = async () => {
     try {
       const token = localStorage.getItem('token_acceso');
-      if (token) {
-        const datos_usuario = await usuariosApi.obtenerPerfil();
-        setUsuario(datos_usuario);
+      if (!token) {
+        setCargando(false);
+        return;
       }
+      
+      const datos_usuario = await usuariosApi.obtenerPerfil();
+      setUsuario(datos_usuario);
     } catch (error) {
       console.error('Error al cargar usuario:', error);
       localStorage.removeItem('token_acceso');
+      setUsuario(null);
     } finally {
       setCargando(false);
     }
@@ -44,7 +49,7 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
   const iniciarSesion = async (correo: string, contrasena: string) => {
     const respuesta = await autenticacionApi.iniciarSesion({ correo, contrasena });
     localStorage.setItem('token_acceso', respuesta.token_acceso);
-    await cargarUsuario();
+    setUsuario(respuesta.usuario);
   };
 
   const cerrarSesion = () => {
@@ -57,8 +62,19 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
     await iniciarSesion(correo, contrasena);
   };
 
+  const actualizarUsuario = (datos: Partial<Usuario>) => {
+    setUsuario(prev => prev ? { ...prev, ...datos } : null);
+  };
+
   return (
-    <AutenticacionContexto.Provider value={{ usuario, cargando, iniciarSesion, cerrarSesion, registrar }}>
+    <AutenticacionContexto.Provider value={{ 
+      usuario, 
+      cargando, 
+      iniciarSesion, 
+      cerrarSesion, 
+      registrar,
+      actualizarUsuario
+    }}>
       {children}
     </AutenticacionContexto.Provider>
   );

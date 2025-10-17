@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: `${API_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -28,6 +28,15 @@ api.interceptors.response.use(
   }
 );
 
+export const verificarConexion = async (): Promise<boolean> => {
+  try {
+    await axios.get(`${API_URL}/api`, { timeout: 5000 });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 export const autenticacionApi = {
   registrar: async (datos: { nombre: string; correo: string; contrasena: string }) => {
     const respuesta = await api.post('/autenticacion/registro', datos);
@@ -46,6 +55,24 @@ export const usuariosApi = {
   },
   actualizarPerfil: async (datos: { nombre?: string; avatar?: string }) => {
     const respuesta = await api.put('/usuarios/perfil', datos);
+    return respuesta.data;
+  },
+};
+
+export const notasApi = {
+  crear: async (contenido: string) => {
+    const respuesta = await api.post('/notas', { contenido });
+    return respuesta.data;
+  },
+  obtenerUltimas: async (dias: number) => {
+    const respuesta = await api.get(`/notas?dias=${dias}`);
+    return respuesta.data;
+  },
+};
+
+export const asistenteApi = {
+  obtenerFraseMotivacional: async (dias: number = 7) => {
+    const respuesta = await api.post('/asistente/frase-motivacional', { dias });
     return respuesta.data;
   },
 };
