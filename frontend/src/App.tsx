@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProveedorAutenticacion, useAutenticacion } from './contextos/autenticacion-contexto';
 import InicioSesion from './paginas/InicioSesion';
-import Registro from './paginas/registro';
-import Inicio from './paginas/inicio';
+import Registro from './paginas/Registro';
+import Inicio from './paginas/Inicio';
+import Finanzas from './paginas/Finanzas';
 import { Loader2 } from 'lucide-react';
 
 function RutaProtegida({ children }: { children: React.ReactNode }) {
@@ -67,6 +68,14 @@ function App() {
             element={
               <RutaProtegida>
                 <Inicio />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/finanzas"
+            element={
+              <RutaProtegida>
+                <Finanzas />
               </RutaProtegida>
             }
           />

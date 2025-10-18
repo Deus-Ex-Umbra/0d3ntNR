@@ -1,14 +1,17 @@
 import { useState, FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Loader2, AlertCircle, LogIn } from 'lucide-react';
+import { usarConexion } from '@/hooks/usar-conexion';
 
 export default function InicioSesion() {
   const { iniciarSesion } = useAutenticacion();
+  const navegar = useNavigate();
+  const { en_linea } = usarConexion();
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -17,12 +20,30 @@ export default function InicioSesion() {
   const manejarEnvio = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!en_linea) {
+      setError('No hay conexión con el servidor. Verifica tu conexión a internet.');
+      return;
+    }
+
     setCargando(true);
 
     try {
       await iniciarSesion(correo, contrasena);
+      navegar('/inicio');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Credenciales incorrectas. Verifica e intenta de nuevo.');
+      console.error('Error en inicio de sesión:', err);
+      
+      if (err.code === 'ERR_NETWORK') {
+        setError('No se pudo conectar con el servidor. Verifica que el backend esté funcionando.');
+      } else if (err.response?.status === 401) {
+        setError('Correo o contraseña incorrectos. Verifica tus credenciales.');
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Error al iniciar sesión. Por favor, intenta de nuevo.');
+      }
+      
       setCargando(false);
     }
   };
@@ -45,6 +66,13 @@ export default function InicioSesion() {
                 <div className="flex items-center gap-2 rounded-lg bg-destructive/15 border border-destructive/30 p-3 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                   <span>{error}</span>
+                </div>
+              )}
+
+              {!en_linea && (
+                <div className="flex items-center gap-2 rounded-lg bg-yellow-500/15 border border-yellow-500/30 p-3 text-sm text-yellow-600 dark:text-yellow-400">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>Sin conexión con el servidor</span>
                 </div>
               )}
 
@@ -82,7 +110,11 @@ export default function InicioSesion() {
                 />
               </div>
 
-              <Button type="submit" className="w-full h-11 text-base font-semibold shadow-lg" disabled={cargando}>
+              <Button 
+                type="submit" 
+                className="w-full h-11 text-base font-semibold shadow-lg" 
+                disabled={cargando || !en_linea}
+              >
                 {cargando && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                 Iniciar Sesión
               </Button>

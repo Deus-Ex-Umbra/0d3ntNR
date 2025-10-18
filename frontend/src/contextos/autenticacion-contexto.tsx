@@ -30,12 +30,15 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
   const cargarUsuario = async () => {
     try {
       const token = localStorage.getItem('token_acceso');
+      console.log('Token en localStorage:', token ? 'Existe' : 'No existe');
+      
       if (!token) {
         setCargando(false);
         return;
       }
       
       const datos_usuario = await usuariosApi.obtenerPerfil();
+      console.log('Usuario cargado:', datos_usuario);
       setUsuario(datos_usuario);
     } catch (error) {
       console.error('Error al cargar usuario:', error);
@@ -47,19 +50,45 @@ export function ProveedorAutenticacion({ children }: { children: ReactNode }) {
   };
 
   const iniciarSesion = async (correo: string, contrasena: string) => {
-    const respuesta = await autenticacionApi.iniciarSesion({ correo, contrasena });
-    localStorage.setItem('token_acceso', respuesta.token_acceso);
-    setUsuario(respuesta.usuario);
+    console.log('Intentando iniciar sesión con:', correo);
+    
+    try {
+      const respuesta = await autenticacionApi.iniciarSesion({ correo, contrasena });
+      console.log('Respuesta del servidor:', respuesta);
+      
+      if (!respuesta.token_acceso) {
+        throw new Error('No se recibió el token de acceso');
+      }
+      
+      localStorage.setItem('token_acceso', respuesta.token_acceso);
+      console.log('Token guardado en localStorage');
+      
+      setUsuario(respuesta.usuario);
+      console.log('Usuario establecido en el contexto:', respuesta.usuario);
+    } catch (error) {
+      console.error('Error completo en iniciarSesion:', error);
+      throw error;
+    }
   };
 
   const cerrarSesion = () => {
+    console.log('Cerrando sesión');
     localStorage.removeItem('token_acceso');
     setUsuario(null);
   };
 
   const registrar = async (nombre: string, correo: string, contrasena: string) => {
-    await autenticacionApi.registrar({ nombre, correo, contrasena });
-    await iniciarSesion(correo, contrasena);
+    console.log('Intentando registrar usuario:', correo);
+    
+    try {
+      const respuesta = await autenticacionApi.registrar({ nombre, correo, contrasena });
+      console.log('Usuario registrado:', respuesta);
+      
+      await iniciarSesion(correo, contrasena);
+    } catch (error) {
+      console.error('Error en registro:', error);
+      throw error;
+    }
   };
 
   const actualizarUsuario = (datos: Partial<Usuario>) => {

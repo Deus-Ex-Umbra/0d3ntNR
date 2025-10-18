@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { AutenticacionServicio } from './autenticacion.servicio';
 import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -31,7 +31,11 @@ export class AutenticacionControlador {
   })
   @ApiResponse({
     status: 400,
-    description: 'Datos inválidos o correo ya existe',
+    description: 'Datos inválidos',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'El correo ya está registrado',
   })
   async registrar(@Body() registro_usuario_dto: RegistroUsuarioDto) {
     return this.autenticacion_servicio.registrar(registro_usuario_dto);
@@ -39,6 +43,7 @@ export class AutenticacionControlador {
 
   @UseGuards(LocalAuthGuard)
   @Post('inicio-sesion')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Iniciar sesión',
     description: 'Autenticar usuario y obtener token JWT',

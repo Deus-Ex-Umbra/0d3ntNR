@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Usuario } from './entidades/usuario.entidad';
@@ -15,6 +15,15 @@ export class UsuariosServicio {
 
   async crear(registro_usuario_dto: RegistroUsuarioDto): Promise<Omit<Usuario, 'contrasena'>> {
     const { nombre, correo, contrasena } = registro_usuario_dto;
+    
+    const usuario_existente = await this.usuario_repositorio.findOne({ 
+      where: { correo } 
+    });
+    
+    if (usuario_existente) {
+      throw new ConflictException('Ya existe una cuenta con este correo electrónico');
+    }
+
     const salt = await bcrypt.genSalt();
     const contrasena_hasheada = await bcrypt.hash(contrasena, salt);
 

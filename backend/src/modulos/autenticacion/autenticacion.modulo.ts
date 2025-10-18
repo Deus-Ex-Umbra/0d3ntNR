@@ -20,9 +20,11 @@ import { LocalEstrategia } from './estrategias/local.estrategia';
         if (!secret) {
           throw new Error('La clave secreta JWT_SECRET no está definida en el .env');
         }
-        const tiempo_expiracion_str = config_servicio.get<string>('JWT_EXPIRATION_TIME', '3600');
+        const tiempo_expiracion_str = config_servicio.get<string>('JWT_EXPIRATION_TIME', '86400');
         const tiempo_expiracion_num = parseInt(tiempo_expiracion_str, 10);
 
+        console.log('JWT configurado correctamente');
+        
         return {
           secret,
           signOptions: {
