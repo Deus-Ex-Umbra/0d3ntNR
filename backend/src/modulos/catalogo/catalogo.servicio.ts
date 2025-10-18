@@ -9,6 +9,10 @@ import { CrearAlergiaDto } from './dto/crear-alergia.dto';
 import { CrearEnfermedadDto } from './dto/crear-enfermedad.dto';
 import { CrearMedicamentoDto } from './dto/crear-medicamento.dto';
 import { CrearColorCategoriaDto } from './dto/crear-color-categoria.dto';
+import { ActualizarAlergiaDto } from './dto/actualizar-alergia.dto';
+import { ActualizarEnfermedadDto } from './dto/actualizar-enfermedad.dto';
+import { ActualizarMedicamentoDto } from './dto/actualizar-medicamento.dto';
+import { ActualizarColorCategoriaDto } from './dto/actualizar-color-categoria.dto';
 
 @Injectable()
 export class CatalogoServicio {
@@ -36,6 +40,14 @@ export class CatalogoServicio {
     return this.alergia_repositorio.find({ where: { activo: true }, order: { nombre: 'ASC' } });
   }
 
+  async actualizarAlergia(id: number, dto: ActualizarAlergiaDto): Promise<Alergia> {
+    const alergia = await this.alergia_repositorio.preload({ id, ...dto });
+    if (!alergia) {
+      throw new NotFoundException('Alergia no encontrada');
+    }
+    return this.alergia_repositorio.save(alergia);
+  }
+
   async eliminarAlergia(id: number): Promise<void> {
     const resultado = await this.alergia_repositorio.delete(id);
     if (resultado.affected === 0) {
@@ -54,6 +66,14 @@ export class CatalogoServicio {
 
   async obtenerEnfermedades(): Promise<Enfermedad[]> {
     return this.enfermedad_repositorio.find({ where: { activo: true }, order: { nombre: 'ASC' } });
+  }
+
+  async actualizarEnfermedad(id: number, dto: ActualizarEnfermedadDto): Promise<Enfermedad> {
+    const enfermedad = await this.enfermedad_repositorio.preload({ id, ...dto });
+    if (!enfermedad) {
+      throw new NotFoundException('Enfermedad no encontrada');
+    }
+    return this.enfermedad_repositorio.save(enfermedad);
   }
 
   async eliminarEnfermedad(id: number): Promise<void> {
@@ -76,6 +96,14 @@ export class CatalogoServicio {
     return this.medicamento_repositorio.find({ where: { activo: true }, order: { nombre: 'ASC' } });
   }
 
+  async actualizarMedicamento(id: number, dto: ActualizarMedicamentoDto): Promise<Medicamento> {
+    const medicamento = await this.medicamento_repositorio.preload({ id, ...dto });
+    if (!medicamento) {
+      throw new NotFoundException('Medicamento no encontrado');
+    }
+    return this.medicamento_repositorio.save(medicamento);
+  }
+
   async eliminarMedicamento(id: number): Promise<void> {
     const resultado = await this.medicamento_repositorio.delete(id);
     if (resultado.affected === 0) {
@@ -92,7 +120,7 @@ export class CatalogoServicio {
     return this.color_repositorio.find({ where: { activo: true }, order: { nombre: 'ASC' } });
   }
 
-  async actualizarColor(id: number, dto: Partial<CrearColorCategoriaDto>): Promise<ColorCategoria> {
+  async actualizarColor(id: number, dto: ActualizarColorCategoriaDto): Promise<ColorCategoria> {
     const color = await this.color_repositorio.preload({ id, ...dto });
     if (!color) {
       throw new NotFoundException('Color no encontrado');

@@ -207,6 +207,10 @@ export const catalogoApi = {
     const respuesta = await api.post('/catalogo/alergias', datos);
     return respuesta.data;
   },
+  actualizarAlergia: async (id: number, datos: { nombre?: string; descripcion?: string }) => {
+    const respuesta = await api.put(`/catalogo/alergias/${id}`, datos);
+    return respuesta.data;
+  },
   eliminarAlergia: async (id: number) => {
     const respuesta = await api.delete(`/catalogo/alergias/${id}`);
     return respuesta.data;
@@ -219,6 +223,10 @@ export const catalogoApi = {
     const respuesta = await api.post('/catalogo/enfermedades', datos);
     return respuesta.data;
   },
+  actualizarEnfermedad: async (id: number, datos: { nombre?: string; descripcion?: string }) => {
+    const respuesta = await api.put(`/catalogo/enfermedades/${id}`, datos);
+    return respuesta.data;
+  },
   eliminarEnfermedad: async (id: number) => {
     const respuesta = await api.delete(`/catalogo/enfermedades/${id}`);
     return respuesta.data;
@@ -229,6 +237,10 @@ export const catalogoApi = {
   },
   crearMedicamento: async (datos: { nombre: string; descripcion?: string }) => {
     const respuesta = await api.post('/catalogo/medicamentos', datos);
+    return respuesta.data;
+  },
+  actualizarMedicamento: async (id: number, datos: { nombre?: string; descripcion?: string }) => {
+    const respuesta = await api.put(`/catalogo/medicamentos/${id}`, datos);
     return respuesta.data;
   },
   eliminarMedicamento: async (id: number) => {

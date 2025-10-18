@@ -517,6 +517,7 @@ export default function Configuracion() {
                     items={alergias}
                     cargando={cargando_catalogos}
                     onCrear={(datos) => catalogoApi.crearAlergia(datos)}
+                    onActualizar={(id, datos) => catalogoApi.actualizarAlergia(id, datos)}
                     onEliminar={(id) => catalogoApi.eliminarAlergia(id)}
                     onRecargar={cargarCatalogos}
                   />
@@ -528,6 +529,7 @@ export default function Configuracion() {
                     items={enfermedades}
                     cargando={cargando_catalogos}
                     onCrear={(datos) => catalogoApi.crearEnfermedad(datos)}
+                    onActualizar={(id, datos) => catalogoApi.actualizarEnfermedad(id, datos)}
                     onEliminar={(id) => catalogoApi.eliminarEnfermedad(id)}
                     onRecargar={cargarCatalogos}
                   />
@@ -539,6 +541,7 @@ export default function Configuracion() {
                     items={medicamentos}
                     cargando={cargando_catalogos}
                     onCrear={(datos) => catalogoApi.crearMedicamento(datos)}
+                    onActualizar={(id, datos) => catalogoApi.actualizarMedicamento(id, datos)}
                     onEliminar={(id) => catalogoApi.eliminarMedicamento(id)}
                     onRecargar={cargarCatalogos}
                   />

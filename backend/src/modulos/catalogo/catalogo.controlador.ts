@@ -6,6 +6,10 @@ import { CrearAlergiaDto } from './dto/crear-alergia.dto';
 import { CrearEnfermedadDto } from './dto/crear-enfermedad.dto';
 import { CrearMedicamentoDto } from './dto/crear-medicamento.dto';
 import { CrearColorCategoriaDto } from './dto/crear-color-categoria.dto';
+import { ActualizarAlergiaDto } from './dto/actualizar-alergia.dto';
+import { ActualizarEnfermedadDto } from './dto/actualizar-enfermedad.dto';
+import { ActualizarMedicamentoDto } from './dto/actualizar-medicamento.dto';
+import { ActualizarColorCategoriaDto } from './dto/actualizar-color-categoria.dto';
 
 @ApiTags('Catálogo')
 @ApiBearerAuth()
@@ -24,6 +28,11 @@ export class CatalogoControlador {
     return this.catalogo_servicio.obtenerAlergias();
   }
 
+  @Put('alergias/:id')
+  actualizarAlergia(@Param('id') id: string, @Body() dto: ActualizarAlergiaDto) {
+    return this.catalogo_servicio.actualizarAlergia(+id, dto);
+  }
+
   @Delete('alergias/:id')
   eliminarAlergia(@Param('id') id: string) {
     return this.catalogo_servicio.eliminarAlergia(+id);
@@ -39,6 +48,11 @@ export class CatalogoControlador {
     return this.catalogo_servicio.obtenerEnfermedades();
   }
 
+  @Put('enfermedades/:id')
+  actualizarEnfermedad(@Param('id') id: string, @Body() dto: ActualizarEnfermedadDto) {
+    return this.catalogo_servicio.actualizarEnfermedad(+id, dto);
+  }
+
   @Delete('enfermedades/:id')
   eliminarEnfermedad(@Param('id') id: string) {
     return this.catalogo_servicio.eliminarEnfermedad(+id);
@@ -52,6 +66,11 @@ export class CatalogoControlador {
   @Get('medicamentos')
   obtenerMedicamentos() {
     return this.catalogo_servicio.obtenerMedicamentos();
+  }
+
+  @Put('medicamentos/:id')
+  actualizarMedicamento(@Param('id') id: string, @Body() dto: ActualizarMedicamentoDto) {
+    return this.catalogo_servicio.actualizarMedicamento(+id, dto);
   }
 
   @Delete('medicamentos/:id')
@@ -70,7 +89,7 @@ export class CatalogoControlador {
   }
 
   @Put('colores/:id')
-  actualizarColor(@Param('id') id: string, @Body() dto: Partial<CrearColorCategoriaDto>) {
+  actualizarColor(@Param('id') id: string, @Body() dto: ActualizarColorCategoriaDto) {
     return this.catalogo_servicio.actualizarColor(+id, dto);
   }
 

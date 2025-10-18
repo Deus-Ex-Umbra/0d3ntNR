@@ -6,7 +6,7 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X } from 'lucide-react';
 import { agendaApi, pacientesApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -35,14 +35,22 @@ interface Paciente {
 
 export default function Agenda() {
   const [citas, setCitas] = useState<Cita[]>([]);
+  const [citas_filtradas, setCitasFiltradas] = useState<Cita[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [mes_actual, setMesActual] = useState(new Date().getMonth() + 1);
   const [ano_actual, setAnoActual] = useState(new Date().getFullYear());
   const [cargando, setCargando] = useState(true);
   const [dialogo_abierto, setDialogoAbierto] = useState(false);
+  const [dialogo_filtros_abierto, setDialogoFiltrosAbierto] = useState(false);
   const [modo_edicion, setModoEdicion] = useState(false);
   const [cita_seleccionada, setCitaSeleccionada] = useState<Cita | null>(null);
   const [guardando, setGuardando] = useState(false);
+
+  const [filtros, setFiltros] = useState({
+    paciente_id: '',
+    estado_pago: '',
+    busqueda: '',
+  });
 
   const [formulario, setFormulario] = useState({
     paciente_id: '',
@@ -67,6 +75,10 @@ export default function Agenda() {
     cargarDatos();
   }, [mes_actual, ano_actual]);
 
+  useEffect(() => {
+    aplicarFiltros();
+  }, [citas, filtros]);
+
   const cargarDatos = async () => {
     setCargando(true);
     try {
@@ -86,6 +98,46 @@ export default function Agenda() {
     } finally {
       setCargando(false);
     }
+  };
+
+  const aplicarFiltros = () => {
+    let resultado = [...citas];
+
+    if (filtros.paciente_id) {
+      resultado = resultado.filter(c => c.paciente?.id.toString() === filtros.paciente_id);
+    }
+
+    if (filtros.estado_pago) {
+      resultado = resultado.filter(c => c.estado_pago === filtros.estado_pago);
+    }
+
+    if (filtros.busqueda) {
+      const busqueda_lower = filtros.busqueda.toLowerCase();
+      resultado = resultado.filter(c => 
+        c.descripcion.toLowerCase().includes(busqueda_lower) ||
+        (c.paciente && 
+          `${c.paciente.nombre} ${c.paciente.apellidos}`.toLowerCase().includes(busqueda_lower))
+      );
+    }
+
+    setCitasFiltradas(resultado);
+  };
+
+  const limpiarFiltros = () => {
+    setFiltros({
+      paciente_id: '',
+      estado_pago: '',
+      busqueda: '',
+    });
+    setDialogoFiltrosAbierto(false);
+  };
+
+  const contarFiltrosActivos = () => {
+    let contador = 0;
+    if (filtros.paciente_id) contador++;
+    if (filtros.estado_pago) contador++;
+    if (filtros.busqueda) contador++;
+    return contador;
   };
 
   const cambiarMes = (direccion: number) => {
@@ -234,7 +286,7 @@ export default function Agenda() {
   const agruparCitasPorDia = () => {
     const grupos: { [key: string]: Cita[] } = {};
     
-    citas.forEach(cita => {
+    citas_filtradas.forEach(cita => {
       const fecha_str = formatearFecha(cita.fecha);
       if (!grupos[fecha_str]) {
         grupos[fecha_str] = [];
@@ -259,10 +311,26 @@ export default function Agenda() {
     }))
   ];
 
+  const opciones_pacientes_filtro: OpcionCombobox[] = [
+    { valor: '', etiqueta: 'Todos los pacientes' },
+    ...pacientes.map(p => ({
+      valor: p.id.toString(),
+      etiqueta: `${p.nombre} ${p.apellidos}`
+    }))
+  ];
+
   const opciones_estados: OpcionCombobox[] = estados_pago.map(e => ({
     valor: e.valor,
     etiqueta: e.etiqueta
   }));
+
+  const opciones_estados_filtro: OpcionCombobox[] = [
+    { valor: '', etiqueta: 'Todos los estados' },
+    ...estados_pago.map(e => ({
+      valor: e.valor,
+      etiqueta: e.etiqueta
+    }))
+  ];
 
   if (cargando) {
     return (
@@ -294,10 +362,26 @@ export default function Agenda() {
               </p>
             </div>
 
-            <Button size="lg" className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200" onClick={abrirDialogoNuevo}>
-              <Plus className="h-5 w-5 mr-2" />
-              Nueva Cita
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => setDialogoFiltrosAbierto(true)}
+                className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200 relative"
+              >
+                <Filter className="h-5 w-5 mr-2" />
+                Filtros
+                {contarFiltrosActivos() > 0 && (
+                  <Badge className="ml-2 bg-primary text-primary-foreground">
+                    {contarFiltrosActivos()}
+                  </Badge>
+                )}
+              </Button>
+              <Button size="lg" className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200" onClick={abrirDialogoNuevo}>
+                <Plus className="h-5 w-5 mr-2" />
+                Nueva Cita
+              </Button>
+            </div>
           </div>
 
           <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
@@ -311,7 +395,10 @@ export default function Agenda() {
                     <CardTitle className="text-2xl">
                       {meses[mes_actual - 1]} {ano_actual}
                     </CardTitle>
-                    <CardDescription>{citas.length} citas programadas</CardDescription>
+                    <CardDescription>
+                      {citas_filtradas.length} de {citas.length} citas
+                      {contarFiltrosActivos() > 0 && ' (filtradas)'}
+                    </CardDescription>
                   </div>
                 </div>
 
@@ -346,18 +433,32 @@ export default function Agenda() {
               </div>
             </CardHeader>
             <CardContent>
-              {citas.length === 0 ? (
+              {citas_filtradas.length === 0 ? (
                 <div className="text-center py-12 space-y-4">
                   <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
                     <AlertCircle className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      No hay citas programadas
+                      {contarFiltrosActivos() > 0 ? 'No hay citas que coincidan con los filtros' : 'No hay citas programadas'}
                     </h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      Crea tu primera cita para comenzar a organizar tu agenda
+                      {contarFiltrosActivos() > 0 
+                        ? 'Intenta ajustar los filtros o crear una nueva cita'
+                        : 'Crea tu primera cita para comenzar a organizar tu agenda'
+                      }
                     </p>
+                    {contarFiltrosActivos() > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={limpiarFiltros}
+                        className="mt-4"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Limpiar Filtros
+                      </Button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -440,6 +541,66 @@ export default function Agenda() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={dialogo_filtros_abierto} onOpenChange={setDialogoFiltrosAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Filtros de Agenda</DialogTitle>
+            <DialogDescription>
+              Filtra las citas por paciente, estado o búsqueda
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Buscar por texto</Label>
+              <Input
+                placeholder="Buscar en descripción o paciente..."
+                value={filtros.busqueda}
+                onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Filtrar por paciente</Label>
+              <Combobox
+                opciones={opciones_pacientes_filtro}
+                valor={filtros.paciente_id}
+                onChange={(valor) => setFiltros({ ...filtros, paciente_id: valor })}
+                placeholder="Selecciona un paciente"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Filtrar por estado de pago</Label>
+              <Combobox
+                opciones={opciones_estados_filtro}
+                valor={filtros.estado_pago}
+                onChange={(valor) => setFiltros({ ...filtros, estado_pago: valor })}
+                placeholder="Selecciona un estado"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={limpiarFiltros}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Limpiar
+            </Button>
+            <Button
+              onClick={() => setDialogoFiltrosAbierto(false)}
+              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Aplicar Filtros
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
         <DialogContent className="sm:max-w-[500px]">

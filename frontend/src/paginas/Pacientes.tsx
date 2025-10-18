@@ -5,14 +5,15 @@ import { Button } from '@/componentes/ui/button';
 import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Badge } from '@/componentes/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
 import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, Palette } from 'lucide-react';
-import { pacientesApi } from '@/lib/api';
+import { pacientesApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
+import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 
 interface Paciente {
   id: number;
@@ -22,23 +23,20 @@ interface Paciente {
   correo?: string;
   direccion?: string;
   notas_generales?: string;
-  alergias?: string;
-  enfermedades?: string;
-  medicamentos?: string;
+  alergias?: number[];
+  enfermedades?: number[];
+  medicamentos?: number[];
   notas_medicas?: string;
   color_categoria?: string;
 }
 
-const colores_predefinidos = [
-  { valor: '#EF4444', nombre: 'Rojo', descripcion: 'Paciente problemático o requiere atención especial' },
-  { valor: '#F59E0B', nombre: 'Naranja', descripcion: 'Paciente con deuda pendiente' },
-  { valor: '#10B981', nombre: 'Verde', descripcion: 'Paciente VIP o preferencial' },
-  { valor: '#3B82F6', nombre: 'Azul', descripcion: 'Paciente regular sin observaciones' },
-  { valor: '#8B5CF6', nombre: 'Púrpura', descripcion: 'Paciente nuevo o en evaluación' },
-  { valor: '#EC4899', nombre: 'Rosa', descripcion: 'Paciente infantil' },
-  { valor: '#14B8A6', nombre: 'Verde Azulado', descripcion: 'Paciente de confianza' },
-  { valor: '#000000', nombre: 'Negro', descripcion: 'Paciente no atender (bloqueado)' },
-];
+interface ItemCatalogo {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  color?: string;
+  activo: boolean;
+}
 
 export default function Pacientes() {
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
@@ -52,6 +50,13 @@ export default function Pacientes() {
   const [guardando, setGuardando] = useState(false);
   const [color_personalizado, setColorPersonalizado] = useState('#808080');
 
+  const [catalogos, setCatalogos] = useState({
+    alergias: [] as ItemCatalogo[],
+    enfermedades: [] as ItemCatalogo[],
+    medicamentos: [] as ItemCatalogo[],
+    colores: [] as ItemCatalogo[],
+  });
+
   const [formulario, setFormulario] = useState({
     nombre: '',
     apellidos: '',
@@ -59,18 +64,19 @@ export default function Pacientes() {
     correo: '',
     direccion: '',
     notas_generales: '',
-    alergias: '',
-    enfermedades: '',
-    medicamentos: '',
+    alergias_ids: [] as number[],
+    enfermedades_ids: [] as number[],
+    medicamentos_ids: [] as number[],
     notas_medicas: '',
     color_categoria: '',
   });
 
   useEffect(() => {
-    cargarPacientes();
+    cargarDatos();
+    cargarCatalogos();
   }, [busqueda]);
 
-  const cargarPacientes = async () => {
+  const cargarDatos = async () => {
     setCargando(true);
     try {
       const datos = await pacientesApi.obtenerTodos(busqueda);
@@ -87,6 +93,20 @@ export default function Pacientes() {
     }
   };
 
+  const cargarCatalogos = async () => {
+    try {
+      const [alergias, enfermedades, medicamentos, colores] = await Promise.all([
+        catalogoApi.obtenerAlergias(),
+        catalogoApi.obtenerEnfermedades(),
+        catalogoApi.obtenerMedicamentos(),
+        catalogoApi.obtenerColores(),
+      ]);
+      setCatalogos({ alergias, enfermedades, medicamentos, colores });
+    } catch (error) {
+      console.error('Error al cargar catálogos:', error);
+    }
+  };
+
   const abrirDialogoNuevo = () => {
     setFormulario({
       nombre: '',
@@ -95,9 +115,9 @@ export default function Pacientes() {
       correo: '',
       direccion: '',
       notas_generales: '',
-      alergias: '',
-      enfermedades: '',
-      medicamentos: '',
+      alergias_ids: [],
+      enfermedades_ids: [],
+      medicamentos_ids: [],
       notas_medicas: '',
       color_categoria: '',
     });
@@ -113,9 +133,9 @@ export default function Pacientes() {
       correo: paciente.correo || '',
       direccion: paciente.direccion || '',
       notas_generales: paciente.notas_generales || '',
-      alergias: paciente.alergias || '',
-      enfermedades: paciente.enfermedades || '',
-      medicamentos: paciente.medicamentos || '',
+      alergias_ids: Array.isArray(paciente.alergias) ? paciente.alergias : [],
+      enfermedades_ids: Array.isArray(paciente.enfermedades) ? paciente.enfermedades : [],
+      medicamentos_ids: Array.isArray(paciente.medicamentos) ? paciente.medicamentos : [],
       notas_medicas: paciente.notas_medicas || '',
       color_categoria: paciente.color_categoria || '',
     });
@@ -136,21 +156,35 @@ export default function Pacientes() {
 
     setGuardando(true);
     try {
+      const datos: any = {
+        nombre: formulario.nombre,
+        apellidos: formulario.apellidos,
+        telefono: formulario.telefono || undefined,
+        correo: formulario.correo || undefined,
+        direccion: formulario.direccion || undefined,
+        notas_generales: formulario.notas_generales || undefined,
+        alergias_ids: formulario.alergias_ids,
+        enfermedades_ids: formulario.enfermedades_ids,
+        medicamentos_ids: formulario.medicamentos_ids,
+        notas_medicas: formulario.notas_medicas || undefined,
+        color_categoria: formulario.color_categoria || undefined,
+      };
+
       if (modo_edicion && paciente_seleccionado) {
-        await pacientesApi.actualizar(paciente_seleccionado.id, formulario);
+        await pacientesApi.actualizar(paciente_seleccionado.id, datos);
         toast({
           title: 'Éxito',
           description: 'Paciente actualizado correctamente',
         });
       } else {
-        await pacientesApi.crear(formulario);
+        await pacientesApi.crear(datos);
         toast({
           title: 'Éxito',
           description: 'Paciente creado correctamente',
         });
       }
       setDialogoAbierto(false);
-      cargarPacientes();
+      cargarDatos();
     } catch (error: any) {
       console.error('Error al guardar paciente:', error);
       toast({
@@ -172,7 +206,7 @@ export default function Pacientes() {
         title: 'Éxito',
         description: 'Paciente eliminado correctamente',
       });
-      cargarPacientes();
+      cargarDatos();
     } catch (error) {
       console.error('Error al eliminar paciente:', error);
       toast({
@@ -211,9 +245,119 @@ export default function Pacientes() {
     });
   };
 
-  const obtenerDescripcionColor = (color: string) => {
-    const color_encontrado = colores_predefinidos.find(c => c.valor === color);
-    return color_encontrado?.descripcion || 'Color personalizado';
+  const obtenerNombreColor = (color_id: string) => {
+    const color = catalogos.colores.find(c => c.color === color_id);
+    return color?.nombre || 'Color personalizado';
+  };
+
+  const obtenerDescripcionColor = (color_id: string) => {
+    const color = catalogos.colores.find(c => c.color === color_id);
+    return color?.descripcion || 'Color personalizado';
+  };
+
+  const agregarAlergia = async (nombre: string) => {
+    try {
+      const nueva_alergia = await catalogoApi.crearAlergia({ nombre });
+      await cargarCatalogos();
+      setFormulario({
+        ...formulario,
+        alergias_ids: [...formulario.alergias_ids, nueva_alergia.id]
+      });
+      toast({
+        title: 'Éxito',
+        description: 'Alergia agregada al catálogo',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo agregar la alergia',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const agregarEnfermedad = async (nombre: string) => {
+    try {
+      const nueva_enfermedad = await catalogoApi.crearEnfermedad({ nombre });
+      await cargarCatalogos();
+      setFormulario({
+        ...formulario,
+        enfermedades_ids: [...formulario.enfermedades_ids, nueva_enfermedad.id]
+      });
+      toast({
+        title: 'Éxito',
+        description: 'Enfermedad agregada al catálogo',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo agregar la enfermedad',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const agregarMedicamento = async (nombre: string) => {
+    try {
+      const nuevo_medicamento = await catalogoApi.crearMedicamento({ nombre });
+      await cargarCatalogos();
+      setFormulario({
+        ...formulario,
+        medicamentos_ids: [...formulario.medicamentos_ids, nuevo_medicamento.id]
+      });
+      toast({
+        title: 'Éxito',
+        description: 'Medicamento agregado al catálogo',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo agregar el medicamento',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const toggleAlergia = (id: number) => {
+    setFormulario(prev => ({
+      ...prev,
+      alergias_ids: prev.alergias_ids.includes(id)
+        ? prev.alergias_ids.filter(a => a !== id)
+        : [...prev.alergias_ids, id]
+    }));
+  };
+
+  const toggleEnfermedad = (id: number) => {
+    setFormulario(prev => ({
+      ...prev,
+      enfermedades_ids: prev.enfermedades_ids.includes(id)
+        ? prev.enfermedades_ids.filter(e => e !== id)
+        : [...prev.enfermedades_ids, id]
+    }));
+  };
+
+  const toggleMedicamento = (id: number) => {
+    setFormulario(prev => ({
+      ...prev,
+      medicamentos_ids: prev.medicamentos_ids.includes(id)
+        ? prev.medicamentos_ids.filter(m => m !== id)
+        : [...prev.medicamentos_ids, id]
+    }));
+  };
+
+  const obtenerAlergiasPorIds = (ids: number[]) => {
+    if (!Array.isArray(ids)) return [];
+    return ids.map(id => catalogos.alergias.find(a => a.id === id)).filter(Boolean) as ItemCatalogo[];
+  };
+
+  const obtenerEnfermedadesPorIds = (ids: number[]) => {
+    if (!Array.isArray(ids)) return [];
+    return ids.map(id => catalogos.enfermedades.find(e => e.id === id)).filter(Boolean) as ItemCatalogo[];
+  };
+
+  const obtenerMedicamentosPorIds = (ids: number[]) => {
+    if (!Array.isArray(ids)) return [];
+    return ids.map(id => catalogos.medicamentos.find(m => m.id === id)).filter(Boolean) as ItemCatalogo[];
   };
 
   if (cargando && pacientes.length === 0) {
@@ -475,17 +619,17 @@ export default function Pacientes() {
                   </Button>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {colores_predefinidos.map((color) => (
+                  {catalogos.colores.filter(c => c.color).map((color) => (
                     <button
-                      key={color.valor}
+                      key={color.id}
                       type="button"
                       className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${
-                        formulario.color_categoria === color.valor
+                        formulario.color_categoria === color.color
                           ? 'border-foreground scale-110 shadow-lg'
                           : 'border-transparent hover:border-border'
                       }`}
-                      style={{ backgroundColor: color.valor }}
-                      onClick={() => setFormulario({ ...formulario, color_categoria: color.valor })}
+                      style={{ backgroundColor: color.color! }}
+                      onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
                       title={color.descripcion}
                     >
                       <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
@@ -514,38 +658,97 @@ export default function Pacientes() {
 
             <TabsContent value="anamnesis" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label htmlFor="alergias">Alergias</Label>
-                <Textarea
-                  id="alergias"
-                  value={formulario.alergias}
-                  onChange={(e) => setFormulario({ ...formulario, alergias: e.target.value })}
-                  placeholder="Penicilina, Polen, etc."
-                  rows={2}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                <Label>Alergias</Label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formulario.alergias_ids.map((id) => {
+                    const alergia = catalogos.alergias.find(a => a.id === id);
+                    return alergia ? (
+                      <Badge
+                        key={id}
+                        variant="destructive"
+                        className="cursor-pointer hover:bg-destructive/80 transition-all duration-200"
+                        onClick={() => toggleAlergia(id)}
+                      >
+                        {alergia.nombre} ×
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+                <SelectConAgregar
+                  opciones={catalogos.alergias.map(a => ({ valor: a.id.toString(), etiqueta: a.nombre }))}
+                  valor=""
+                  onChange={(valor) => {
+                    if (valor) toggleAlergia(parseInt(valor));
+                  }}
+                  onAgregarNuevo={agregarAlergia}
+                  placeholder="Seleccionar alergia"
+                  textoAgregar="+ Agregar nueva alergia"
+                  tituloModal="Agregar Nueva Alergia"
+                  descripcionModal="Ingresa el nombre de la alergia"
+                  placeholderInput="Ej: Penicilina"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="enfermedades">Enfermedades Preexistentes</Label>
-                <Textarea
-                  id="enfermedades"
-                  value={formulario.enfermedades}
-                  onChange={(e) => setFormulario({ ...formulario, enfermedades: e.target.value })}
-                  placeholder="Diabetes, Hipertensión, etc."
-                  rows={2}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                <Label>Enfermedades Preexistentes</Label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formulario.enfermedades_ids.map((id) => {
+                    const enfermedad = catalogos.enfermedades.find(e => e.id === id);
+                    return enfermedad ? (
+                      <Badge
+                        key={id}
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-secondary/80 hover:text-destructive transition-all duration-200"
+                        onClick={() => toggleEnfermedad(id)}
+                      >
+                        {enfermedad.nombre} ×
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+                <SelectConAgregar
+                  opciones={catalogos.enfermedades.map(e => ({ valor: e.id.toString(), etiqueta: e.nombre }))}
+                  valor=""
+                  onChange={(valor) => {
+                    if (valor) toggleEnfermedad(parseInt(valor));
+                  }}
+                  onAgregarNuevo={agregarEnfermedad}
+                  placeholder="Seleccionar enfermedad"
+                  textoAgregar="+ Agregar nueva enfermedad"
+                  tituloModal="Agregar Nueva Enfermedad"
+                  descripcionModal="Ingresa el nombre de la enfermedad"
+                  placeholderInput="Ej: Diabetes"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="medicamentos">Medicamentos Actuales</Label>
-                <Textarea
-                  id="medicamentos"
-                  value={formulario.medicamentos}
-                  onChange={(e) => setFormulario({ ...formulario, medicamentos: e.target.value })}
-                  placeholder="Medicamentos que toma actualmente..."
-                  rows={2}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                <Label>Medicamentos Actuales</Label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formulario.medicamentos_ids.map((id) => {
+                    const medicamento = catalogos.medicamentos.find(m => m.id === id);
+                    return medicamento ? (
+                      <Badge
+                        key={id}
+                        className="cursor-pointer hover:bg-primary/80 transition-all duration-200"
+                        onClick={() => toggleMedicamento(id)}
+                      >
+                        {medicamento.nombre} ×
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+                <SelectConAgregar
+                  opciones={catalogos.medicamentos.map(m => ({ valor: m.id.toString(), etiqueta: m.nombre }))}
+                  valor=""
+                  onChange={(valor) => {
+                    if (valor) toggleMedicamento(parseInt(valor));
+                  }}
+                  onAgregarNuevo={agregarMedicamento}
+                  placeholder="Seleccionar medicamento"
+                  textoAgregar="+ Agregar nuevo medicamento"
+                  tituloModal="Agregar Nuevo Medicamento"
+                  descripcionModal="Ingresa el nombre del medicamento"
+                  placeholderInput="Ej: Aspirina"
                 />
               </div>
 
@@ -589,28 +792,30 @@ export default function Pacientes() {
           <DialogHeader>
             <DialogTitle>Seleccionar Color de Categoría</DialogTitle>
             <DialogDescription>
-              Elige un color predefinido o crea tu propio color personalizado
+              Elige un color del catálogo o crea uno personalizado
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
             <div className="space-y-3">
-              <Label>Colores Predefinidos</Label>
+              <Label>Colores del Catálogo</Label>
               <div className="grid grid-cols-2 gap-3">
-                {colores_predefinidos.map((color) => (
+                {catalogos.colores.filter(c => c.color).map((color) => (
                   <button
-                    key={color.valor}
+                    key={color.id}
                     type="button"
                     className="flex items-center gap-3 p-3 rounded-lg border-2 border-border hover:border-primary hover:bg-secondary/50 transition-all duration-200 hover:scale-105"
-                    onClick={() => seleccionarColorPredefinido(color.valor)}
+                    onClick={() => seleccionarColorPredefinido(color.color!)}
                   >
                     <div
                       className="w-8 h-8 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color.valor }}
+                      style={{ backgroundColor: color.color }}
                     />
                     <div className="text-left flex-1">
                       <p className="font-medium text-sm">{color.nombre}</p>
-                      <p className="text-xs text-muted-foreground">{color.descripcion}</p>
+                      {color.descripcion && (
+                        <p className="text-xs text-muted-foreground">{color.descripcion}</p>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -715,46 +920,69 @@ export default function Pacientes() {
                 </TabsContent>
 
                 <TabsContent value="medico" className="space-y-4 mt-4">
-                  <div className="space-y-3">
-                    {paciente_seleccionado.alergias && (
-                      <div>
+                  <div className="space-y-4">
+                    {paciente_seleccionado.alergias && paciente_seleccionado.alergias.length > 0 && (
+                      <div className="space-y-2">
                         <Label className="text-muted-foreground">Alergias</Label>
-                        <p className="text-foreground font-medium whitespace-pre-wrap">
-                          {paciente_seleccionado.alergias}
-                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {obtenerAlergiasPorIds(paciente_seleccionado.alergias).map((alergia) => (
+                            <Badge key={alergia.id} variant="destructive">
+                              {alergia.nombre}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {paciente_seleccionado.enfermedades && (
-                      <div>
-                        <Label className="text-muted-foreground">Enfermedades</Label>
-                        <p className="text-foreground font-medium whitespace-pre-wrap">
-                          {paciente_seleccionado.enfermedades}
-                        </p>
+                    
+                    {paciente_seleccionado.enfermedades && paciente_seleccionado.enfermedades.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">Enfermedades Preexistentes</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {obtenerEnfermedadesPorIds(paciente_seleccionado.enfermedades).map((enfermedad) => (
+                            <Badge key={enfermedad.id} variant="secondary">
+                              {enfermedad.nombre}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {paciente_seleccionado.medicamentos && (
-                      <div>
-                        <Label className="text-muted-foreground">Medicamentos</Label>
-                        <p className="text-foreground font-medium whitespace-pre-wrap">
-                          {paciente_seleccionado.medicamentos}
-                        </p>
+                    
+                    {paciente_seleccionado.medicamentos && paciente_seleccionado.medicamentos.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-muted-foreground">Medicamentos Actuales</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {obtenerMedicamentosPorIds(paciente_seleccionado.medicamentos).map((medicamento) => (
+                            <Badge key={medicamento.id}>
+                              {medicamento.nombre}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
+                    
                     {paciente_seleccionado.notas_medicas && (
-                      <div>
+                      <div className="space-y-2">
                         <Label className="text-muted-foreground">Notas Médicas</Label>
-                        <p className="text-foreground font-medium whitespace-pre-wrap">
-                          {paciente_seleccionado.notas_medicas}
-                        </p>
+                        <div className="p-3 rounded-lg bg-secondary/30">
+                          <p className="text-foreground font-medium whitespace-pre-wrap">
+                            {paciente_seleccionado.notas_medicas}
+                          </p>
+                        </div>
                       </div>
                     )}
-                    {!paciente_seleccionado.alergias && 
-                     !paciente_seleccionado.enfermedades && 
-                     !paciente_seleccionado.medicamentos && 
+                    
+                    {(!paciente_seleccionado.alergias || paciente_seleccionado.alergias.length === 0) &&
+                     (!paciente_seleccionado.enfermedades || paciente_seleccionado.enfermedades.length === 0) &&
+                     (!paciente_seleccionado.medicamentos || paciente_seleccionado.medicamentos.length === 0) &&
                      !paciente_seleccionado.notas_medicas && (
-                      <p className="text-muted-foreground text-center py-4">
-                        No hay información médica registrada
-                      </p>
+                      <div className="text-center py-8">
+                        <div className="mx-auto w-12 h-12 bg-secondary/50 rounded-full flex items-center justify-center mb-3">
+                          <AlertCircle className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="text-muted-foreground">
+                          No hay información médica registrada
+                        </p>
+                      </div>
                     )}
                   </div>
                 </TabsContent>
