@@ -33,13 +33,6 @@ import {
   TabsTrigger,
 } from "@/componentes/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/componentes/ui/select";
-import {
   FileText,
   Plus,
   Edit,
@@ -56,6 +49,7 @@ import { tratamientosApi, planesTratamientoApi, pacientesApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/componentes/ui/toaster";
 import { Badge } from "@/componentes/ui/badge";
+import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 
 interface Tratamiento {
   id: number;
@@ -102,16 +96,12 @@ export default function Tratamientos() {
   const [planes, setPlanes] = useState<PlanTratamiento[]>([]);
   const [cargando, setCargando] = useState(true);
   const [cargando_planes, setCargandoPlanes] = useState(false);
-  const [dialogo_plantilla_abierto, setDialogoPlantillaAbierto] =
-    useState(false);
+  const [dialogo_plantilla_abierto, setDialogoPlantillaAbierto] = useState(false);
   const [dialogo_asignar_abierto, setDialogoAsignarAbierto] = useState(false);
-  const [dialogo_detalle_plan_abierto, setDialogoDetallePlanAbierto] =
-    useState(false);
+  const [dialogo_detalle_plan_abierto, setDialogoDetallePlanAbierto] = useState(false);
   const [modo_edicion, setModoEdicion] = useState(false);
-  const [tratamiento_seleccionado, setTratamientoSeleccionado] =
-    useState<Tratamiento | null>(null);
-  const [plan_seleccionado, setPlanSeleccionado] =
-    useState<PlanTratamiento | null>(null);
+  const [tratamiento_seleccionado, setTratamientoSeleccionado] = useState<Tratamiento | null>(null);
+  const [plan_seleccionado, setPlanSeleccionado] = useState<PlanTratamiento | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [paciente_filtro, setPacienteFiltro] = useState<string>("todos");
 
@@ -155,16 +145,8 @@ export default function Tratamientos() {
   const cargarPlanes = async () => {
     setCargandoPlanes(true);
     try {
-      const planes_totales: PlanTratamiento[] = [];
-
-      for (const paciente of pacientes) {
-        const planes_paciente = await planesTratamientoApi.obtenerPorPaciente(
-          paciente.id
-        );
-        planes_totales.push(...planes_paciente);
-      }
-
-      setPlanes(planes_totales);
+      const planes_totales = await planesTratamientoApi.obtenerTodos();
+      setPlanes(planes_totales.filter((p: PlanTratamiento) => p.paciente && p.tratamiento));
     } catch (error) {
       console.error("Error al cargar planes:", error);
       toast({
@@ -361,9 +343,22 @@ export default function Tratamientos() {
     return (plan.total_abonado / plan.costo_total) * 100;
   };
 
-const planes_filtrados = paciente_filtro === 'todos' 
-  ? planes.filter(p => p.paciente && p.tratamiento)
-  : planes.filter(p => p.paciente?.id.toString() === paciente_filtro);
+  const opciones_pacientes: OpcionCombobox[] = [
+    { valor: "todos", etiqueta: "Todos los pacientes" },
+    ...pacientes.map(p => ({
+      valor: p.id.toString(),
+      etiqueta: `${p.nombre} ${p.apellidos}`
+    }))
+  ];
+
+  const opciones_pacientes_asignar: OpcionCombobox[] = pacientes.map(p => ({
+    valor: p.id.toString(),
+    etiqueta: `${p.nombre} ${p.apellidos}`
+  }));
+
+  const planes_filtrados = paciente_filtro === 'todos' 
+    ? planes 
+    : planes.filter(p => p.paciente?.id.toString() === paciente_filtro);
 
   if (cargando) {
     return (
@@ -434,9 +429,7 @@ const planes_filtrados = paciente_filtro === 'todos'
                       <CardTitle className="text-xl">
                         Plantillas de Tratamiento
                       </CardTitle>
-                      <CardDescription>
-                        {tratamientos.length} plantillas registradas
-                      </CardDescription>
+                      <CardDescription>{tratamientos.length} plantillas registradas</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -543,27 +536,12 @@ const planes_filtrados = paciente_filtro === 'todos'
                       </div>
                     </div>
                     <div className="w-64">
-                      <Select
-                        value={paciente_filtro}
-                        onValueChange={setPacienteFiltro}
-                      >
-                        <SelectTrigger className="hover:border-primary/50 transition-all duration-200">
-                          <SelectValue placeholder="Filtrar por paciente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todos">
-                            Todos los pacientes
-                          </SelectItem>
-                          {pacientes.map((paciente) => (
-                            <SelectItem
-                              key={paciente.id}
-                              value={paciente.id.toString()}
-                            >
-                              {paciente.nombre} {paciente.apellidos}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Combobox
+                        opciones={opciones_pacientes}
+                        valor={paciente_filtro}
+                        onChange={setPacienteFiltro}
+                        placeholder="Filtrar por paciente"
+                      />
                     </div>
                   </div>
                 </CardHeader>
@@ -596,12 +574,6 @@ const planes_filtrados = paciente_filtro === 'todos'
                         const progreso = calcularProgreso(plan);
                         const saldo_pendiente =
                           plan.costo_total - plan.total_abonado;
-
-                        // Validación defensiva
-                        if (!plan.paciente || !plan.tratamiento) {
-                          console.warn("Plan con datos incompletos:", plan);
-                          return null;
-                        }
 
                         return (
                           <div
@@ -806,29 +778,17 @@ const planes_filtrados = paciente_filtro === 'todos'
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="paciente">Paciente *</Label>
-              <Select
-                value={formulario_asignar.paciente_id}
-                onValueChange={(value) =>
+              <Combobox
+                opciones={opciones_pacientes_asignar}
+                valor={formulario_asignar.paciente_id}
+                onChange={(valor) =>
                   setFormularioAsignar({
                     ...formulario_asignar,
-                    paciente_id: value,
+                    paciente_id: valor,
                   })
                 }
-              >
-                <SelectTrigger className="hover:border-primary/50 focus:border-primary transition-all duration-200">
-                  <SelectValue placeholder="Selecciona un paciente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pacientes.map((paciente) => (
-                    <SelectItem
-                      key={paciente.id}
-                      value={paciente.id.toString()}
-                    >
-                      {paciente.nombre} {paciente.apellidos}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecciona un paciente"
+              />
             </div>
 
             <div className="space-y-2">

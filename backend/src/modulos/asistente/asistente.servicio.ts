@@ -20,7 +20,6 @@ export class AsistenteServicio {
     `;
     const resultado_texto = await this.gemini_servicio.analizarImagen(imagen_base64, prompt);
     
-    // Limpiar y parsear la respuesta de la IA
     try {
         const json_limpio = resultado_texto.replace(/```json\n?|\n?```/g, '');
         return JSON.parse(json_limpio);
@@ -31,13 +30,22 @@ export class AsistenteServicio {
 
   async generarFraseMotivacional(usuario_id: number, dias: number): Promise<string> {
     const notas = await this.notas_servicio.obtenerUltimasNotas(usuario_id, dias);
+    const hora_actual = new Date().getHours();
+    
+    let momento_dia = 'día';
+    if (hora_actual < 12) momento_dia = 'mañana';
+    else if (hora_actual < 18) momento_dia = 'tarde';
+    else momento_dia = 'noche';
+
     if (notas.length === 0) {
-      return "Sigue adelante, ¡cada día es una nueva oportunidad para marcar la diferencia!";
+      const prompt = `Genera una frase motivacional corta y positiva para un dentista en la ${momento_dia}. Máximo 2 líneas.`;
+      return this.gemini_servicio.generarContenido(prompt);
     }
 
     const contenido_notas = notas.map(n => n.contenido).join('\n---\n');
     const prompt = `
-      Basado en estas notas de un dentista sobre sus últimos ${dias} días, genera una frase motivacional corta y de ánimo.
+      Basado en estas notas de un dentista sobre sus últimos ${dias} días, genera una frase motivacional corta (máximo 2 líneas).
+      Es ${momento_dia}, considera el momento del día en tu mensaje.
       El objetivo es animarlo a seguir adelante. No resumas las notas, solo úsalas como contexto emocional.
       Notas:
       ${contenido_notas}

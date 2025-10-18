@@ -13,6 +13,7 @@ import { UsuariosModule } from './modulos/usuarios/usuarios.modulo';
 import { GeminiModule } from './modulos/gemini/gemini.modulo';
 import { NotasModule } from './modulos/notas/notas.modulo';
 import { AsistenteModule } from './modulos/asistente/asistente.modulo';
+import { EstadisticasModule } from './modulos/estadisticas/estadisticas.modulo';
 import { Paciente } from './modulos/pacientes/entidades/paciente.entidad';
 import { Odontograma } from './modulos/odontograma/entidades/odontograma.entidad';
 import { Tratamiento } from './modulos/tratamientos/entidades/tratamiento.entidad';
@@ -52,6 +53,7 @@ import { Pago } from './modulos/finanzas/entidades/pago.entidad';
     GeminiModule,
     NotasModule,
     AsistenteModule,
+    EstadisticasModule,
   ],
   controllers: [AppControlador],
   providers: [AppServicio],

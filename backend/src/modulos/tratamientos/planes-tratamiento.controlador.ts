@@ -16,6 +16,11 @@ export class PlanesTratamientoControlador {
     return this.planes_servicio.asignarPlan(asignar_plan_dto);
   }
   
+  @Get()
+  obtenerTodos() {
+    return this.planes_servicio.obtenerTodos();
+  }
+  
   @Get('paciente/:paciente_id')
   obtenerPlanesPorPaciente(@Param('paciente_id') paciente_id: string) {
     return this.planes_servicio.obtenerPlanesPorPaciente(+paciente_id);

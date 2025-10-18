@@ -14,28 +14,20 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token_acceso');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('Token agregado al header:', token.substring(0, 20) + '...');
-    } else {
-      console.log('No hay token en localStorage');
     }
     return config;
   },
   (error) => {
-    console.error('Error en interceptor de request:', error);
     return Promise.reject(error);
   }
 );
 
 api.interceptors.response.use(
   (response) => {
-    console.log(`Respuesta exitosa de ${response.config.url}:`, response.status);
     return response;
   },
   (error) => {
-    console.error('Error en interceptor de response:', error.response?.status, error.response?.data);
-    
     if (error.response?.status === 401) {
-      console.log('Token inválido o expirado, redirigiendo a inicio de sesión');
       localStorage.removeItem('token_acceso');
       
       if (window.location.pathname !== '/inicio-sesion' && window.location.pathname !== '/registro') {
@@ -129,6 +121,10 @@ export const planesTratamientoApi = {
     const respuesta = await api.post('/planes-tratamiento', datos);
     return respuesta.data;
   },
+  obtenerTodos: async () => {
+    const respuesta = await api.get('/planes-tratamiento');
+    return respuesta.data;
+  },
   obtenerPorPaciente: async (paciente_id: number) => {
     const respuesta = await api.get(`/planes-tratamiento/paciente/${paciente_id}`);
     return respuesta.data;
@@ -136,7 +132,7 @@ export const planesTratamientoApi = {
 };
 
 export const agendaApi = {
-  crear: async (datos: { paciente_id?: number; plan_tratamiento_id?: number; fecha: Date; descripcion: string }) => {
+  crear: async (datos: any) => {
     const respuesta = await api.post('/agenda', datos);
     return respuesta.data;
   },
@@ -177,11 +173,11 @@ export const asistenteApi = {
 };
 
 export const finanzasApi = {
-  registrarEgreso: async (datos: { concepto: string; fecha: Date; monto: number }) => {
+  registrarEgreso: async (datos: { concepto: string; fecha: Date; monto: number; cita_id?: number }) => {
     const respuesta = await api.post('/finanzas/egresos', datos);
     return respuesta.data;
   },
-  registrarPago: async (datos: { plan_tratamiento_id: number; fecha: Date; monto: number }) => {
+  registrarPago: async (datos: { plan_tratamiento_id?: number; cita_id?: number; fecha: Date; monto: number; concepto?: string }) => {
     const respuesta = await api.post('/finanzas/pagos', datos);
     return respuesta.data;
   },
@@ -191,6 +187,13 @@ export const finanzasApi = {
     if (fecha_fin) params.append('fecha_fin', fecha_fin);
     
     const respuesta = await api.get(`/finanzas/reporte?${params.toString()}`);
+    return respuesta.data;
+  },
+};
+
+export const estadisticasApi = {
+  obtenerDashboard: async () => {
+    const respuesta = await api.get('/estadisticas/dashboard');
     return respuesta.data;
   },
 };

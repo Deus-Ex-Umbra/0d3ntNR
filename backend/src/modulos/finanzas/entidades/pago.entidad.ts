@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { PlanTratamiento } from '../../tratamientos/entidades/plan-tratamiento.entidad';
+import { Cita } from '../../agenda/entidades/cita.entidad';
 
 @Entity()
 export class Pago {
@@ -12,6 +13,12 @@ export class Pago {
   @Column('decimal', { precision: 10, scale: 2 })
   monto: number;
 
-  @ManyToOne(() => PlanTratamiento, (plan) => plan.pagos)
+  @Column({ nullable: true })
+  concepto: string;
+
+  @ManyToOne(() => PlanTratamiento, (plan) => plan.pagos, { nullable: true })
   plan_tratamiento: PlanTratamiento;
+
+  @ManyToOne(() => Cita, { nullable: true, onDelete: 'SET NULL' })
+  cita: Cita;
 }

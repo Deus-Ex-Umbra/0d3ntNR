@@ -31,7 +31,6 @@ export class PlanesTratamientoServicio {
     
     const plan_guardado = await this.plan_repositorio.save(nuevo_plan);
 
-    // Generar citas
     const fecha_actual = new Date(fecha_inicio);
     for (let i = 0; i < tratamiento_plantilla.numero_citas; i++) {
       await this.agenda_servicio.crear({
@@ -39,17 +38,25 @@ export class PlanesTratamientoServicio {
         plan_tratamiento_id: plan_guardado.id,
         fecha: new Date(fecha_actual),
         descripcion: `${tratamiento_plantilla.nombre} - Cita ${i + 1}`,
+        estado_pago: 'pendiente',
       });
-      fecha_actual.setDate(fecha_actual.getDate() + 7); // Asume frecuencia semanal
+      fecha_actual.setDate(fecha_actual.getDate() + 7);
     }
 
     return this.encontrarPlanPorId(plan_guardado.id);
   }
   
+  async obtenerTodos(): Promise<PlanTratamiento[]> {
+    return this.plan_repositorio.find({
+      relations: ['paciente', 'tratamiento', 'citas', 'pagos'],
+      order: { id: 'DESC' },
+    });
+  }
+  
   async encontrarPlanPorId(id: number): Promise<PlanTratamiento> {
     const plan = await this.plan_repositorio.findOne({
       where: { id },
-      relations: ['citas', 'pagos']
+      relations: ['paciente', 'tratamiento', 'citas', 'pagos']
     });
     if (!plan) {
         throw new NotFoundException(`Plan de tratamiento con ID "${id}" no encontrado.`);

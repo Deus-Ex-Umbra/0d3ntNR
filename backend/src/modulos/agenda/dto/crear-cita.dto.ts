@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsInt, IsOptional, IsString, IsNumber, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CrearCitaDto {
@@ -21,4 +21,14 @@ export class CrearCitaDto {
   @ApiProperty()
   @IsString()
   descripcion: string;
+
+  @ApiProperty({ required: false, default: 'pendiente', enum: ['pendiente', 'pagado', 'cancelado'] })
+  @IsOptional()
+  @IsIn(['pendiente', 'pagado', 'cancelado'])
+  estado_pago?: string;
+
+  @ApiProperty({ required: false, default: 0 })
+  @IsOptional()
+  @IsNumber()
+  monto_esperado?: number;
 }
