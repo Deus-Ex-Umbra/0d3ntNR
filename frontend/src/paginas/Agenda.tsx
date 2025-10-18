@@ -6,16 +6,19 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
-import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
 import { agendaApi, pacientesApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
+import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
+import { Badge } from '@/componentes/ui/badge';
 
 interface Cita {
   id: number;
   fecha: Date;
   descripcion: string;
+  estado_pago: string;
+  monto_esperado: number;
   paciente?: {
     id: number;
     nombre: string;
@@ -42,14 +45,22 @@ export default function Agenda() {
   const [guardando, setGuardando] = useState(false);
 
   const [formulario, setFormulario] = useState({
-    paciente_id: 'sin_paciente',
+    paciente_id: '',
     fecha: '',
     descripcion: '',
+    estado_pago: 'pendiente',
+    monto_esperado: '',
   });
 
   const meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  const estados_pago = [
+    { valor: 'pendiente', etiqueta: 'Pendiente', color: 'bg-yellow-500' },
+    { valor: 'pagado', etiqueta: 'Pagado', color: 'bg-green-500' },
+    { valor: 'cancelado', etiqueta: 'Cancelado', color: 'bg-red-500' },
   ];
 
   useEffect(() => {
@@ -95,9 +106,11 @@ export default function Agenda() {
 
   const abrirDialogoNuevo = () => {
     setFormulario({
-      paciente_id: 'sin_paciente',
+      paciente_id: '',
       fecha: new Date().toISOString().slice(0, 16),
       descripcion: '',
+      estado_pago: 'pendiente',
+      monto_esperado: '',
     });
     setModoEdicion(false);
     setDialogoAbierto(true);
@@ -105,9 +118,11 @@ export default function Agenda() {
 
   const abrirDialogoEditar = (cita: Cita) => {
     setFormulario({
-      paciente_id: cita.paciente?.id.toString() || 'sin_paciente',
+      paciente_id: cita.paciente?.id.toString() || '',
       fecha: new Date(cita.fecha).toISOString().slice(0, 16),
       descripcion: cita.descripcion,
+      estado_pago: cita.estado_pago || 'pendiente',
+      monto_esperado: cita.monto_esperado?.toString() || '',
     });
     setCitaSeleccionada(cita);
     setModoEdicion(true);
@@ -129,9 +144,11 @@ export default function Agenda() {
       const datos: any = {
         fecha: new Date(formulario.fecha),
         descripcion: formulario.descripcion,
+        estado_pago: formulario.estado_pago,
+        monto_esperado: formulario.monto_esperado ? parseFloat(formulario.monto_esperado) : 0,
       };
 
-      if (formulario.paciente_id !== 'sin_paciente') {
+      if (formulario.paciente_id) {
         datos.paciente_id = parseInt(formulario.paciente_id);
       }
 
@@ -197,6 +214,23 @@ export default function Agenda() {
     });
   };
 
+  const formatearMoneda = (monto: number): string => {
+    return new Intl.NumberFormat('es-BO', {
+      style: 'currency',
+      currency: 'BOB',
+    }).format(monto);
+  };
+
+  const obtenerColorEstado = (estado: string): string => {
+    const estado_encontrado = estados_pago.find(e => e.valor === estado);
+    return estado_encontrado?.color || 'bg-gray-500';
+  };
+
+  const obtenerEtiquetaEstado = (estado: string): string => {
+    const estado_encontrado = estados_pago.find(e => e.valor === estado);
+    return estado_encontrado?.etiqueta || estado;
+  };
+
   const agruparCitasPorDia = () => {
     const grupos: { [key: string]: Cita[] } = {};
     
@@ -216,6 +250,19 @@ export default function Agenda() {
   };
 
   const citas_agrupadas = agruparCitasPorDia();
+
+  const opciones_pacientes: OpcionCombobox[] = [
+    { valor: '', etiqueta: 'Evento general (sin paciente)' },
+    ...pacientes.map(p => ({
+      valor: p.id.toString(),
+      etiqueta: `${p.nombre} ${p.apellidos}`
+    }))
+  ];
+
+  const opciones_estados: OpcionCombobox[] = estados_pago.map(e => ({
+    valor: e.valor,
+    etiqueta: e.etiqueta
+  }));
 
   if (cargando) {
     return (
@@ -327,7 +374,7 @@ export default function Agenda() {
                             key={cita.id}
                             className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
                           >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 flex-1">
                               {cita.paciente?.color_categoria && (
                                 <div
                                   className="w-1 h-12 rounded-full"
@@ -349,11 +396,20 @@ export default function Agenda() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="ml-4">
+                              <div className="ml-4 flex-1">
                                 <p className="text-sm text-foreground">{cita.descripcion}</p>
+                                {cita.monto_esperado > 0 && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                    <DollarSign className="h-3 w-3" />
+                                    Monto esperado: {formatearMoneda(cita.monto_esperado)}
+                                  </p>
+                                )}
                               </div>
+                              <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white hover:scale-110 transition-transform duration-200`}>
+                                {obtenerEtiquetaEstado(cita.estado_pago)}
+                              </Badge>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 ml-4">
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -401,22 +457,12 @@ export default function Agenda() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="paciente">Paciente (opcional)</Label>
-              <Select
-                value={formulario.paciente_id}
-                onValueChange={(value) => setFormulario({ ...formulario, paciente_id: value })}
-              >
-                <SelectTrigger className="hover:border-primary/50 focus:border-primary transition-all duration-200">
-                  <SelectValue placeholder="Evento general (sin paciente)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sin_paciente">Evento general (sin paciente)</SelectItem>
-                  {pacientes.map((paciente) => (
-                    <SelectItem key={paciente.id} value={paciente.id.toString()}>
-                      {paciente.nombre} {paciente.apellidos}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                opciones={opciones_pacientes}
+                valor={formulario.paciente_id}
+                onChange={(valor) => setFormulario({ ...formulario, paciente_id: valor })}
+                placeholder="Selecciona un paciente"
+              />
             </div>
 
             <div className="space-y-2">
@@ -440,6 +486,32 @@ export default function Agenda() {
                 rows={3}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="estado_pago">Estado de Pago</Label>
+                <Combobox
+                  opciones={opciones_estados}
+                  valor={formulario.estado_pago}
+                  onChange={(valor) => setFormulario({ ...formulario, estado_pago: valor })}
+                  placeholder="Estado"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="monto_esperado">Monto Esperado (Bs.)</Label>
+                <Input
+                  id="monto_esperado"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formulario.monto_esperado}
+                  onChange={(e) => setFormulario({ ...formulario, monto_esperado: e.target.value })}
+                  placeholder="0.00"
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                />
+              </div>
             </div>
           </div>
 

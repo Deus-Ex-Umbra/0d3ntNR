@@ -7,15 +7,18 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle } from 'lucide-react';
-import { finanzasApi } from '@/lib/api';
+import { finanzasApi, planesTratamientoApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
+import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 
 interface Movimiento {
   tipo: 'ingreso' | 'egreso';
   fecha: Date;
   monto: number;
   concepto: string;
+  cita_id?: number;
 }
 
 interface ReporteFinanzas {
@@ -25,17 +28,56 @@ interface ReporteFinanzas {
   movimientos: Movimiento[];
 }
 
+interface PlanTratamiento {
+  id: number;
+  paciente: {
+    nombre: string;
+    apellidos: string;
+  };
+  tratamiento: {
+    nombre: string;
+  };
+}
+
+interface Cita {
+  id: number;
+  fecha: Date;
+  descripcion: string;
+  paciente?: {
+    nombre: string;
+    apellidos: string;
+  };
+}
+
 export default function Finanzas() {
   const [reporte, setReporte] = useState<ReporteFinanzas | null>(null);
   const [cargando, setCargando] = useState(true);
   const [fecha_inicio, setFechaInicio] = useState('');
   const [fecha_fin, setFechaFin] = useState('');
   
+  const [dialogo_ingreso_abierto, setDialogoIngresoAbierto] = useState(false);
   const [dialogo_egreso_abierto, setDialogoEgresoAbierto] = useState(false);
+  const [guardando_ingreso, setGuardandoIngreso] = useState(false);
   const [guardando_egreso, setGuardandoEgreso] = useState(false);
-  const [concepto_egreso, setConceptoEgreso] = useState('');
-  const [fecha_egreso, setFechaEgreso] = useState('');
-  const [monto_egreso, setMontoEgreso] = useState('');
+  
+  const [planes_tratamiento, setPlanesTratamiento] = useState<PlanTratamiento[]>([]);
+  const [citas, setCitas] = useState<Cita[]>([]);
+  const [cargando_datos, setCargandoDatos] = useState(false);
+
+  const [formulario_ingreso, setFormularioIngreso] = useState({
+    plan_tratamiento_id: '',
+    cita_id: '',
+    concepto: '',
+    fecha: '',
+    monto: '',
+  });
+
+  const [formulario_egreso, setFormularioEgreso] = useState({
+    concepto: '',
+    fecha: '',
+    monto: '',
+    cita_id: '',
+  });
 
   useEffect(() => {
     cargarReporte();
@@ -58,6 +100,23 @@ export default function Finanzas() {
     }
   };
 
+  const cargarDatosAdicionales = async () => {
+    setCargandoDatos(true);
+    try {
+      const fecha_actual = new Date();
+      const [datos_planes, datos_citas] = await Promise.all([
+        planesTratamientoApi.obtenerTodos(),
+        agendaApi.obtenerPorMes(fecha_actual.getMonth() + 1, fecha_actual.getFullYear()),
+      ]);
+      setPlanesTratamiento(datos_planes.filter((p: PlanTratamiento) => p.paciente && p.tratamiento));
+      setCitas(datos_citas);
+    } catch (error) {
+      console.error('Error al cargar datos adicionales:', error);
+    } finally {
+      setCargandoDatos(false);
+    }
+  };
+
   const manejarFiltrarPorFechas = () => {
     if (!fecha_inicio || !fecha_fin) {
       toast({
@@ -76,8 +135,88 @@ export default function Finanzas() {
     cargarReporte();
   };
 
+  const abrirDialogoIngreso = () => {
+    setFormularioIngreso({
+      plan_tratamiento_id: '',
+      cita_id: '',
+      concepto: '',
+      fecha: new Date().toISOString().split('T')[0],
+      monto: '',
+    });
+    cargarDatosAdicionales();
+    setDialogoIngresoAbierto(true);
+  };
+
+  const abrirDialogoEgreso = () => {
+    setFormularioEgreso({
+      concepto: '',
+      fecha: new Date().toISOString().split('T')[0],
+      monto: '',
+      cita_id: '',
+    });
+    cargarDatosAdicionales();
+    setDialogoEgresoAbierto(true);
+  };
+
+  const manejarRegistrarIngreso = async () => {
+    if (!formulario_ingreso.fecha || !formulario_ingreso.monto) {
+      toast({
+        title: 'Error',
+        description: 'Fecha y monto son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const monto = parseFloat(formulario_ingreso.monto);
+    if (isNaN(monto) || monto <= 0) {
+      toast({
+        title: 'Error',
+        description: 'El monto debe ser un número positivo',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardandoIngreso(true);
+    try {
+      const datos: any = {
+        fecha: new Date(formulario_ingreso.fecha),
+        monto,
+        concepto: formulario_ingreso.concepto || 'Ingreso general',
+      };
+
+      if (formulario_ingreso.plan_tratamiento_id) {
+        datos.plan_tratamiento_id = parseInt(formulario_ingreso.plan_tratamiento_id);
+      }
+
+      if (formulario_ingreso.cita_id) {
+        datos.cita_id = parseInt(formulario_ingreso.cita_id);
+      }
+
+      await finanzasApi.registrarPago(datos);
+
+      toast({
+        title: 'Éxito',
+        description: 'Ingreso registrado correctamente',
+      });
+
+      setDialogoIngresoAbierto(false);
+      cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+    } catch (error: any) {
+      console.error('Error al registrar ingreso:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo registrar el ingreso',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardandoIngreso(false);
+    }
+  };
+
   const manejarRegistrarEgreso = async () => {
-    if (!concepto_egreso || !fecha_egreso || !monto_egreso) {
+    if (!formulario_egreso.concepto || !formulario_egreso.fecha || !formulario_egreso.monto) {
       toast({
         title: 'Error',
         description: 'Todos los campos son obligatorios',
@@ -86,7 +225,7 @@ export default function Finanzas() {
       return;
     }
 
-    const monto = parseFloat(monto_egreso);
+    const monto = parseFloat(formulario_egreso.monto);
     if (isNaN(monto) || monto <= 0) {
       toast({
         title: 'Error',
@@ -98,11 +237,17 @@ export default function Finanzas() {
 
     setGuardandoEgreso(true);
     try {
-      await finanzasApi.registrarEgreso({
-        concepto: concepto_egreso,
-        fecha: new Date(fecha_egreso),
+      const datos: any = {
+        concepto: formulario_egreso.concepto,
+        fecha: new Date(formulario_egreso.fecha),
         monto,
-      });
+      };
+
+      if (formulario_egreso.cita_id) {
+        datos.cita_id = parseInt(formulario_egreso.cita_id);
+      }
+
+      await finanzasApi.registrarEgreso(datos);
 
       toast({
         title: 'Éxito',
@@ -110,10 +255,6 @@ export default function Finanzas() {
       });
 
       setDialogoEgresoAbierto(false);
-      setConceptoEgreso('');
-      setFechaEgreso('');
-      setMontoEgreso('');
-      
       cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
     } catch (error) {
       console.error('Error al registrar egreso:', error);
@@ -143,6 +284,22 @@ export default function Finanzas() {
       minute: '2-digit',
     });
   };
+
+  const opciones_planes: OpcionCombobox[] = [
+    { valor: '', etiqueta: 'Sin plan de tratamiento' },
+    ...planes_tratamiento.map(p => ({
+      valor: p.id.toString(),
+      etiqueta: `${p.paciente.nombre} ${p.paciente.apellidos} - ${p.tratamiento.nombre}`
+    }))
+  ];
+
+  const opciones_citas: OpcionCombobox[] = [
+    { valor: '', etiqueta: 'Sin cita asociada' },
+    ...citas.map(c => ({
+      valor: c.id.toString(),
+      etiqueta: `${formatearFecha(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion}`
+    }))
+  ];
 
   if (cargando) {
     return (
@@ -174,81 +331,25 @@ export default function Finanzas() {
               </p>
             </div>
 
-            <Dialog open={dialogo_egreso_abierto} onOpenChange={setDialogoEgresoAbierto}>
-              <DialogTrigger asChild>
-                <Button size="lg" className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Registrar Egreso
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Registrar Egreso</DialogTitle>
-                  <DialogDescription>
-                    Registra un gasto o egreso de tu consultorio
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="concepto">Concepto</Label>
-                    <Textarea
-                      id="concepto"
-                      placeholder="Ej: Compra de materiales dentales"
-                      value={concepto_egreso}
-                      onChange={(e) => setConceptoEgreso(e.target.value)}
-                      rows={3}
-                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fecha_egreso">Fecha</Label>
-                      <Input
-                        id="fecha_egreso"
-                        type="datetime-local"
-                        value={fecha_egreso}
-                        onChange={(e) => setFechaEgreso(e.target.value)}
-                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="monto">Monto (Bs.)</Label>
-                      <Input
-                        id="monto"
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={monto_egreso}
-                        onChange={(e) => setMontoEgreso(e.target.value)}
-                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setDialogoEgresoAbierto(false)}
-                    disabled={guardando_egreso}
-                    className="hover:scale-105 transition-all duration-200"
-                  >
-                    Cancelar
+            <div className="flex gap-2">
+              <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
+                <DialogTrigger asChild>
+                  <Button size="lg" onClick={abrirDialogoIngreso} className="shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200 bg-green-600 hover:bg-green-700">
+                    <Plus className="h-5 w-5 mr-2" />
+                    Registrar Ingreso
                   </Button>
-                  <Button 
-                    onClick={manejarRegistrarEgreso} 
-                    disabled={guardando_egreso}
-                    className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-                  >
-                    {guardando_egreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Registrar
+                </DialogTrigger>
+              </Dialog>
+
+              <Dialog open={dialogo_egreso_abierto} onOpenChange={setDialogoEgresoAbierto}>
+                <DialogTrigger asChild>
+                  <Button size="lg" variant="destructive" onClick={abrirDialogoEgreso} className="shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200">
+                    <Plus className="h-5 w-5 mr-2" />
+                    Registrar Egreso
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+              </Dialog>
+            </div>
           </div>
 
           <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
@@ -427,6 +528,209 @@ export default function Finanzas() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Registrar Ingreso</DialogTitle>
+            <DialogDescription>
+              Registra un pago o ingreso a tu consultorio
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="general" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="relacion">Relación</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="general" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="concepto_ingreso">Concepto</Label>
+                <Input
+                  id="concepto_ingreso"
+                  placeholder="Ej: Pago de consulta, Tratamiento completado"
+                  value={formulario_ingreso.concepto}
+                  onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, concepto: e.target.value })}
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_ingreso">Fecha *</Label>
+                  <Input
+                    id="fecha_ingreso"
+                    type="date"
+                    value={formulario_ingreso.fecha}
+                    onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, fecha: e.target.value })}
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="monto_ingreso">Monto (Bs.) *</Label>
+                  <Input
+                    id="monto_ingreso"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formulario_ingreso.monto}
+                    onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, monto: e.target.value })}
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="relacion" className="space-y-4 mt-4">
+              {cargando_datos ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Plan de Tratamiento (opcional)</Label>
+                    <Combobox
+                      opciones={opciones_planes}
+                      valor={formulario_ingreso.plan_tratamiento_id}
+                      onChange={(valor) => setFormularioIngreso({ ...formulario_ingreso, plan_tratamiento_id: valor })}
+                      placeholder="Selecciona un plan"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Vincula este ingreso a un plan de tratamiento específico
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cita Asociada (opcional)</Label>
+                    <Combobox
+                      opciones={opciones_citas}
+                      valor={formulario_ingreso.cita_id}
+                      onChange={(valor) => setFormularioIngreso({ ...formulario_ingreso, cita_id: valor })}
+                      placeholder="Selecciona una cita"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Vincula este ingreso a una cita específica
+                    </p>
+                  </div>
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoIngresoAbierto(false)}
+              disabled={guardando_ingreso}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={manejarRegistrarIngreso} 
+              disabled={guardando_ingreso}
+              className="bg-green-600 hover:bg-green-700 hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              {guardando_ingreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Registrar Ingreso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_egreso_abierto} onOpenChange={setDialogoEgresoAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Registrar Egreso</DialogTitle>
+            <DialogDescription>
+              Registra un gasto o egreso de tu consultorio
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="concepto_egreso">Concepto *</Label>
+              <Textarea
+                id="concepto_egreso"
+                placeholder="Ej: Compra de materiales dentales"
+                value={formulario_egreso.concepto}
+                onChange={(e) => setFormularioEgreso({ ...formulario_egreso, concepto: e.target.value })}
+                rows={3}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fecha_egreso">Fecha *</Label>
+                <Input
+                  id="fecha_egreso"
+                  type="date"
+                  value={formulario_egreso.fecha}
+                  onChange={(e) => setFormularioEgreso({ ...formulario_egreso, fecha: e.target.value })}
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="monto_egreso">Monto (Bs.) *</Label>
+                <Input
+                  id="monto_egreso"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formulario_egreso.monto}
+                  onChange={(e) => setFormularioEgreso({ ...formulario_egreso, monto: e.target.value })}
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                />
+              </div>
+            </div>
+
+            {cargando_datos ? (
+              <div className="text-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Cita Asociada (opcional)</Label>
+                <Combobox
+                  opciones={opciones_citas}
+                  valor={formulario_egreso.cita_id}
+                  onChange={(valor) => setFormularioEgreso({ ...formulario_egreso, cita_id: valor })}
+                  placeholder="Selecciona una cita"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Vincula este egreso a una cita específica si aplica
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoEgresoAbierto(false)}
+              disabled={guardando_egreso}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={manejarRegistrarEgreso} 
+              disabled={guardando_egreso}
+              variant="destructive"
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              {guardando_egreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Registrar Egreso
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Toaster />
     </div>
   );
