@@ -1,6 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Odontograma } from '../../odontograma/entidades/odontograma.entidad';
 import { PlanTratamiento } from '../../tratamientos/entidades/plan-tratamiento.entidad';
+import { PacienteAlergia } from './paciente-alergia.entidad';
+import { PacienteEnfermedad } from './paciente-enfermedad.entidad';
+import { PacienteMedicamento } from './paciente-medicamento.entidad';
 
 @Entity()
 export class Paciente {
@@ -45,4 +48,13 @@ export class Paciente {
 
   @OneToMany(() => PlanTratamiento, (plan) => plan.paciente)
   planes_tratamiento: PlanTratamiento[];
+
+  @OneToMany(() => PacienteAlergia, (pa) => pa.paciente, { cascade: true })
+  paciente_alergias: PacienteAlergia[];
+
+  @OneToMany(() => PacienteEnfermedad, (pe) => pe.paciente, { cascade: true })
+  paciente_enfermedades: PacienteEnfermedad[];
+
+  @OneToMany(() => PacienteMedicamento, (pm) => pm.paciente, { cascade: true })
+  paciente_medicamentos: PacienteMedicamento[];
 }

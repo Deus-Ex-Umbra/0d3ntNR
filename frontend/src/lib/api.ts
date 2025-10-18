@@ -197,3 +197,58 @@ export const estadisticasApi = {
     return respuesta.data;
   },
 };
+
+export const catalogoApi = {
+  obtenerAlergias: async () => {
+    const respuesta = await api.get('/catalogo/alergias');
+    return respuesta.data;
+  },
+  crearAlergia: async (datos: { nombre: string; descripcion?: string }) => {
+    const respuesta = await api.post('/catalogo/alergias', datos);
+    return respuesta.data;
+  },
+  eliminarAlergia: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/alergias/${id}`);
+    return respuesta.data;
+  },
+  obtenerEnfermedades: async () => {
+    const respuesta = await api.get('/catalogo/enfermedades');
+    return respuesta.data;
+  },
+  crearEnfermedad: async (datos: { nombre: string; descripcion?: string }) => {
+    const respuesta = await api.post('/catalogo/enfermedades', datos);
+    return respuesta.data;
+  },
+  eliminarEnfermedad: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/enfermedades/${id}`);
+    return respuesta.data;
+  },
+  obtenerMedicamentos: async () => {
+    const respuesta = await api.get('/catalogo/medicamentos');
+    return respuesta.data;
+  },
+  crearMedicamento: async (datos: { nombre: string; descripcion?: string }) => {
+    const respuesta = await api.post('/catalogo/medicamentos', datos);
+    return respuesta.data;
+  },
+  eliminarMedicamento: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/medicamentos/${id}`);
+    return respuesta.data;
+  },
+  obtenerColores: async () => {
+    const respuesta = await api.get('/catalogo/colores');
+    return respuesta.data;
+  },
+  crearColor: async (datos: { nombre: string; color: string; descripcion?: string }) => {
+    const respuesta = await api.post('/catalogo/colores', datos);
+    return respuesta.data;
+  },
+  actualizarColor: async (id: number, datos: { nombre?: string; color?: string; descripcion?: string }) => {
+    const respuesta = await api.put(`/catalogo/colores/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminarColor: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/colores/${id}`);
+    return respuesta.data;
+  },
+};

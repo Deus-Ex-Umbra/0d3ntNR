@@ -26,28 +26,36 @@ interface Estadisticas {
 export default function Inicio() {
   const { usuario } = useAutenticacion();
   const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null);
-  const [frase_motivacional, setFraseMotivacional] = useState<string>('');
+  const [frase_motivacional, setFraseMotivacional] = useState<string>('Bienvenido, ¿qué haremos hoy?');
   const [cargando, setCargando] = useState(true);
-  const [cargando_frase, setCargandoFrase] = useState(true);
+  const [cargando_frase, setCargandoFrase] = useState(false);
 
   useEffect(() => {
-    cargarDatos();
+    cargarEstadisticas();
+    cargarFraseMotivacional();
   }, []);
 
-  const cargarDatos = async () => {
+  const cargarEstadisticas = async () => {
     setCargando(true);
-    setCargandoFrase(true);
     try {
-      const [datos_estadisticas, frase] = await Promise.all([
-        estadisticasApi.obtenerDashboard(),
-        asistenteApi.obtenerFraseMotivacional(7),
-      ]);
+      const datos_estadisticas = await estadisticasApi.obtenerDashboard();
       setEstadisticas(datos_estadisticas);
-      setFraseMotivacional(frase);
     } catch (error) {
-      console.error('Error al cargar datos:', error);
+      console.error('Error al cargar estadísticas:', error);
     } finally {
       setCargando(false);
+    }
+  };
+
+  const cargarFraseMotivacional = async () => {
+    setCargandoFrase(true);
+    try {
+      const frase = await asistenteApi.obtenerFraseMotivacional(7);
+      setFraseMotivacional(frase);
+    } catch (error) {
+      console.error('Error al cargar frase:', error);
+      setFraseMotivacional('Bienvenido, ¿qué haremos hoy?');
+    } finally {
       setCargandoFrase(false);
     }
   };
@@ -129,28 +137,23 @@ export default function Inicio() {
               </p>
             </div>
 
-            {cargando_frase ? (
-              <div className="p-5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20">
-                <div className="flex items-center gap-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  <p className="text-muted-foreground">Generando mensaje del día...</p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary/20 p-3 rounded-xl mt-1 hover:scale-110 transition-transform duration-200">
+            <div className="p-5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+              <div className="flex items-start gap-4">
+                <div className="bg-primary/20 p-3 rounded-xl mt-1 hover:scale-110 transition-transform duration-200">
+                  {cargando_frase ? (
+                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                  ) : (
                     <Sparkles className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-primary mb-1">Mensaje del día</h3>
-                    <p className="text-base text-foreground leading-relaxed">
-                      {frase_motivacional}
-                    </p>
-                  </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-primary mb-1">Mensaje del día</h3>
+                  <p className="text-base text-foreground leading-relaxed">
+                    {frase_motivacional}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

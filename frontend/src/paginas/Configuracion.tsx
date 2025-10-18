@@ -6,12 +6,21 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet } from 'lucide-react';
+import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema } from '@/contextos/tema-contexto';
-import { usuariosApi, notasApi, asistenteApi } from '@/lib/api';
+import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
+import { GestionCatalogo } from '@/componentes/catalogo/gestion-catalogo';
+
+interface ItemCatalogo {
+  id: number;
+  nombre: string;
+  descripcion?: string;
+  color?: string;
+  activo: boolean;
+}
 
 export default function Configuracion() {
   const { usuario, actualizarUsuario } = useAutenticacion();
@@ -27,12 +36,47 @@ export default function Configuracion() {
   const [nota_diaria, setNotaDiaria] = useState('');
   const [guardando_nota, setGuardandoNota] = useState(false);
 
+  const [alergias, setAlergias] = useState<ItemCatalogo[]>([]);
+  const [enfermedades, setEnfermedades] = useState<ItemCatalogo[]>([]);
+  const [medicamentos, setMedicamentos] = useState<ItemCatalogo[]>([]);
+  const [colores, setColores] = useState<ItemCatalogo[]>([]);
+  const [cargando_catalogos, setCargandoCatalogos] = useState(false);
+
   const temas_disponibles = [
     { valor: 'sistema', nombre: 'Sistema', icono: Monitor, descripcion: 'Usar tema del sistema' },
     { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro' },
     { valor: 'oscuro', nombre: 'Oscuro', icono: Moon, descripcion: 'Tema oscuro' },
     { valor: 'azul', nombre: 'Azul Oscuro', icono: Droplet, descripcion: 'Tema azul profesional' },
   ];
+
+  useEffect(() => {
+    cargarCatalogos();
+  }, []);
+
+  const cargarCatalogos = async () => {
+    setCargandoCatalogos(true);
+    try {
+      const [alergias_data, enfermedades_data, medicamentos_data, colores_data] = await Promise.all([
+        catalogoApi.obtenerAlergias(),
+        catalogoApi.obtenerEnfermedades(),
+        catalogoApi.obtenerMedicamentos(),
+        catalogoApi.obtenerColores(),
+      ]);
+      setAlergias(alergias_data);
+      setEnfermedades(enfermedades_data);
+      setMedicamentos(medicamentos_data);
+      setColores(colores_data);
+    } catch (error) {
+      console.error('Error al cargar catálogos:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los catálogos',
+        variant: 'destructive',
+      });
+    } finally {
+      setCargandoCatalogos(false);
+    }
+  };
 
   const manejarActualizarPerfil = async () => {
     if (!formulario_perfil.nombre) {
@@ -170,7 +214,7 @@ export default function Configuracion() {
           </div>
 
           <Tabs defaultValue="perfil" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-11">
+            <TabsList className="grid w-full grid-cols-4 h-11">
               <TabsTrigger value="perfil" className="text-base">
                 <User className="h-4 w-4 mr-2" />
                 Perfil
@@ -182,6 +226,10 @@ export default function Configuracion() {
               <TabsTrigger value="apariencia" className="text-base">
                 <Palette className="h-4 w-4 mr-2" />
                 Apariencia
+              </TabsTrigger>
+              <TabsTrigger value="catalogos" className="text-base">
+                <Database className="h-4 w-4 mr-2" />
+                Catálogos
               </TabsTrigger>
             </TabsList>
 
@@ -444,6 +492,69 @@ export default function Configuracion() {
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="catalogos" className="space-y-6 mt-6">
+              <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                      <Database className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">Gestión de Catálogos</CardTitle>
+                      <CardDescription>
+                        Administra las opciones predefinidas para tus pacientes
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  <GestionCatalogo
+                    titulo="Alergias"
+                    items={alergias}
+                    cargando={cargando_catalogos}
+                    onCrear={(datos) => catalogoApi.crearAlergia(datos)}
+                    onEliminar={(id) => catalogoApi.eliminarAlergia(id)}
+                    onRecargar={cargarCatalogos}
+                  />
+
+                  <div className="border-t border-border" />
+
+                  <GestionCatalogo
+                    titulo="Enfermedades"
+                    items={enfermedades}
+                    cargando={cargando_catalogos}
+                    onCrear={(datos) => catalogoApi.crearEnfermedad(datos)}
+                    onEliminar={(id) => catalogoApi.eliminarEnfermedad(id)}
+                    onRecargar={cargarCatalogos}
+                  />
+
+                  <div className="border-t border-border" />
+
+                  <GestionCatalogo
+                    titulo="Medicamentos"
+                    items={medicamentos}
+                    cargando={cargando_catalogos}
+                    onCrear={(datos) => catalogoApi.crearMedicamento(datos)}
+                    onEliminar={(id) => catalogoApi.eliminarMedicamento(id)}
+                    onRecargar={cargarCatalogos}
+                  />
+
+                  <div className="border-t border-border" />
+
+                  <GestionCatalogo
+                    titulo="Colores de Categoría"
+                    items={colores}
+                    cargando={cargando_catalogos}
+                    onCrear={(datos) => catalogoApi.crearColor(datos)}
+                    onActualizar={(id, datos) => catalogoApi.actualizarColor(id, datos)}
+                    onEliminar={(id) => catalogoApi.eliminarColor(id)}
+                    onRecargar={cargarCatalogos}
+                    permitirColor={true}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>

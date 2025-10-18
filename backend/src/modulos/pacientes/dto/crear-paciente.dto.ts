@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsArray, IsInt } from 'class-validator';
 
 export class CrearPacienteDto {
   @ApiProperty()
@@ -30,17 +30,17 @@ export class CrearPacienteDto {
   @IsString()
   notas_generales?: string;
 
-  @ApiProperty({ description: "Alergias conocidas", required: false })
+  @ApiProperty({ description: "Alergias conocidas (texto libre)", required: false })
   @IsOptional()
   @IsString()
   alergias?: string;
 
-  @ApiProperty({ description: "Enfermedades preexistentes", required: false })
+  @ApiProperty({ description: "Enfermedades preexistentes (texto libre)", required: false })
   @IsOptional()
   @IsString()
   enfermedades?: string;
 
-  @ApiProperty({ description: "Medicamentos que toma actualmente", required: false })
+  @ApiProperty({ description: "Medicamentos que toma actualmente (texto libre)", required: false })
   @IsOptional()
   @IsString()
   medicamentos?: string;
@@ -54,4 +54,22 @@ export class CrearPacienteDto {
   @IsOptional()
   @IsString()
   color_categoria?: string;
+
+  @ApiProperty({ description: "IDs de alergias del catálogo", required: false, type: [Number] })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  alergias_ids?: number[];
+
+  @ApiProperty({ description: "IDs de enfermedades del catálogo", required: false, type: [Number] })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  enfermedades_ids?: number[];
+
+  @ApiProperty({ description: "IDs de medicamentos del catálogo", required: false, type: [Number] })
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  medicamentos_ids?: number[];
 }

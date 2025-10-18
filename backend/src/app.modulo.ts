@@ -14,7 +14,11 @@ import { GeminiModule } from './modulos/gemini/gemini.modulo';
 import { NotasModule } from './modulos/notas/notas.modulo';
 import { AsistenteModule } from './modulos/asistente/asistente.modulo';
 import { EstadisticasModule } from './modulos/estadisticas/estadisticas.modulo';
+import { CatalogoModule } from './modulos/catalogo/catalogo.modulo';
 import { Paciente } from './modulos/pacientes/entidades/paciente.entidad';
+import { PacienteAlergia } from './modulos/pacientes/entidades/paciente-alergia.entidad';
+import { PacienteEnfermedad } from './modulos/pacientes/entidades/paciente-enfermedad.entidad';
+import { PacienteMedicamento } from './modulos/pacientes/entidades/paciente-medicamento.entidad';
 import { Odontograma } from './modulos/odontograma/entidades/odontograma.entidad';
 import { Tratamiento } from './modulos/tratamientos/entidades/tratamiento.entidad';
 import { PlanTratamiento } from './modulos/tratamientos/entidades/plan-tratamiento.entidad';
@@ -23,6 +27,10 @@ import { Egreso } from './modulos/finanzas/entidades/egreso.entidad';
 import { Usuario } from './modulos/usuarios/entidades/usuario.entidad';
 import { NotaDiaria } from './modulos/notas/entidades/nota-diaria.entidad';
 import { Pago } from './modulos/finanzas/entidades/pago.entidad';
+import { Alergia } from './modulos/catalogo/entidades/alergia.entidad';
+import { Enfermedad } from './modulos/catalogo/entidades/enfermedad.entidad';
+import { Medicamento } from './modulos/catalogo/entidades/medicamento.entidad';
+import { ColorCategoria } from './modulos/catalogo/entidades/color-categoria.entidad';
 
 @Module({
   imports: [
@@ -32,6 +40,9 @@ import { Pago } from './modulos/finanzas/entidades/pago.entidad';
       database: 'database.sqlite',
       entities: [
         Paciente,
+        PacienteAlergia,
+        PacienteEnfermedad,
+        PacienteMedicamento,
         Odontograma,
         Tratamiento,
         PlanTratamiento,
@@ -40,6 +51,10 @@ import { Pago } from './modulos/finanzas/entidades/pago.entidad';
         Usuario,
         NotaDiaria,
         Pago,
+        Alergia,
+        Enfermedad,
+        Medicamento,
+        ColorCategoria,
       ],
       synchronize: true,
     }),
@@ -54,6 +69,7 @@ import { Pago } from './modulos/finanzas/entidades/pago.entidad';
     NotasModule,
     AsistenteModule,
     EstadisticasModule,
+    CatalogoModule,
   ],
   controllers: [AppControlador],
   providers: [AppServicio],
