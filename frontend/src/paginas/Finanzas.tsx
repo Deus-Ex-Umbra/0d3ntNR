@@ -166,7 +166,9 @@ export default function Finanzas() {
         <div className="p-8 space-y-8">
           <div className="flex justify-between items-start">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground tracking-tight">Finanzas</h1>
+              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
+                Finanzas
+              </h1>
               <p className="text-lg text-muted-foreground">
                 Gestión financiera de tu consultorio
               </p>
@@ -174,7 +176,7 @@ export default function Finanzas() {
 
             <Dialog open={dialogo_egreso_abierto} onOpenChange={setDialogoEgresoAbierto}>
               <DialogTrigger asChild>
-                <Button size="lg" className="shadow-lg">
+                <Button size="lg" className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200">
                   <Plus className="h-5 w-5 mr-2" />
                   Registrar Egreso
                 </Button>
@@ -196,6 +198,7 @@ export default function Finanzas() {
                       value={concepto_egreso}
                       onChange={(e) => setConceptoEgreso(e.target.value)}
                       rows={3}
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                     />
                   </div>
 
@@ -207,6 +210,7 @@ export default function Finanzas() {
                         type="datetime-local"
                         value={fecha_egreso}
                         onChange={(e) => setFechaEgreso(e.target.value)}
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                       />
                     </div>
 
@@ -219,6 +223,7 @@ export default function Finanzas() {
                         placeholder="0.00"
                         value={monto_egreso}
                         onChange={(e) => setMontoEgreso(e.target.value)}
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                       />
                     </div>
                   </div>
@@ -229,10 +234,15 @@ export default function Finanzas() {
                     variant="outline"
                     onClick={() => setDialogoEgresoAbierto(false)}
                     disabled={guardando_egreso}
+                    className="hover:scale-105 transition-all duration-200"
                   >
                     Cancelar
                   </Button>
-                  <Button onClick={manejarRegistrarEgreso} disabled={guardando_egreso}>
+                  <Button 
+                    onClick={manejarRegistrarEgreso} 
+                    disabled={guardando_egreso}
+                    className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+                  >
                     {guardando_egreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Registrar
                   </Button>
@@ -241,10 +251,12 @@ export default function Finanzas() {
             </Dialog>
           </div>
 
-          <Card className="border-2 border-border shadow-lg">
+          <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                  <Calendar className="h-5 w-5 text-primary" />
+                </div>
                 Filtrar por Fechas
               </CardTitle>
               <CardDescription>Selecciona un rango de fechas para filtrar el reporte</CardDescription>
@@ -258,6 +270,7 @@ export default function Finanzas() {
                     type="date"
                     value={fecha_inicio}
                     onChange={(e) => setFechaInicio(e.target.value)}
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
                 </div>
                 <div className="flex-1 space-y-2">
@@ -267,11 +280,21 @@ export default function Finanzas() {
                     type="date"
                     value={fecha_fin}
                     onChange={(e) => setFechaFin(e.target.value)}
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
                 </div>
-                <Button onClick={manejarFiltrarPorFechas}>Filtrar</Button>
+                <Button 
+                  onClick={manejarFiltrarPorFechas}
+                  className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+                >
+                  Filtrar
+                </Button>
                 {(fecha_inicio || fecha_fin) && (
-                  <Button variant="outline" onClick={limpiarFiltros}>
+                  <Button 
+                    variant="outline" 
+                    onClick={limpiarFiltros}
+                    className="hover:scale-105 transition-all duration-200"
+                  >
                     Limpiar
                   </Button>
                 )}
@@ -280,12 +303,12 @@ export default function Finanzas() {
           </Card>
 
           <div className="grid gap-6 md:grid-cols-3">
-            <Card className="border-2 border-border shadow-lg hover:shadow-xl transition-all">
+            <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:scale-105 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   Total Ingresos
                 </CardTitle>
-                <div className="bg-green-500/10 p-2 rounded-lg">
+                <div className="bg-green-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <TrendingUp className="h-5 w-5 text-green-500" />
                 </div>
               </CardHeader>
@@ -296,12 +319,12 @@ export default function Finanzas() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-border shadow-lg hover:shadow-xl transition-all">
+            <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:scale-105 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   Total Egresos
                 </CardTitle>
-                <div className="bg-red-500/10 p-2 rounded-lg">
+                <div className="bg-red-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <TrendingDown className="h-5 w-5 text-red-500" />
                 </div>
               </CardHeader>
@@ -312,12 +335,12 @@ export default function Finanzas() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-primary/30 shadow-lg hover:shadow-xl transition-all bg-gradient-to-br from-primary/5 to-transparent">
+            <Card className="border-2 border-primary/30 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-all duration-300 bg-gradient-to-br from-primary/5 to-transparent">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   Balance Total
                 </CardTitle>
-                <div className="bg-primary/10 p-2 rounded-lg">
+                <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
               </CardHeader>
@@ -331,10 +354,10 @@ export default function Finanzas() {
             </Card>
           </div>
 
-          <Card className="border-2 border-border shadow-lg">
+          <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="bg-primary/10 p-2 rounded-lg">
+                <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <FileText className="h-5 w-5 text-primary" />
                 </div>
                 <div>
@@ -348,7 +371,7 @@ export default function Finanzas() {
             <CardContent>
               {!reporte?.movimientos.length ? (
                 <div className="text-center py-12 space-y-4">
-                  <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
+                  <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
                     <AlertCircle className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <div className="space-y-2">
@@ -365,10 +388,10 @@ export default function Finanzas() {
                   {reporte.movimientos.map((movimiento, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-lg ${
+                        <div className={`p-2 rounded-lg hover:scale-110 transition-transform duration-200 ${
                           movimiento.tipo === 'ingreso' 
                             ? 'bg-green-500/10' 
                             : 'bg-red-500/10'

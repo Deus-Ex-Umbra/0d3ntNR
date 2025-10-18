@@ -77,6 +77,83 @@ export const usuariosApi = {
   },
 };
 
+export const pacientesApi = {
+  crear: async (datos: any) => {
+    const respuesta = await api.post('/pacientes', datos);
+    return respuesta.data;
+  },
+  obtenerTodos: async (termino_busqueda?: string) => {
+    const params = termino_busqueda ? `?termino_busqueda=${termino_busqueda}` : '';
+    const respuesta = await api.get(`/pacientes${params}`);
+    return respuesta.data;
+  },
+  obtenerPorId: async (id: number) => {
+    const respuesta = await api.get(`/pacientes/${id}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: any) => {
+    const respuesta = await api.put(`/pacientes/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/pacientes/${id}`);
+    return respuesta.data;
+  },
+};
+
+export const tratamientosApi = {
+  crear: async (datos: { nombre: string; numero_citas: number; costo_total: number }) => {
+    const respuesta = await api.post('/tratamientos', datos);
+    return respuesta.data;
+  },
+  obtenerTodos: async () => {
+    const respuesta = await api.get('/tratamientos');
+    return respuesta.data;
+  },
+  obtenerPorId: async (id: number) => {
+    const respuesta = await api.get(`/tratamientos/${id}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: any) => {
+    const respuesta = await api.put(`/tratamientos/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/tratamientos/${id}`);
+    return respuesta.data;
+  },
+};
+
+export const planesTratamientoApi = {
+  asignar: async (datos: { paciente_id: number; tratamiento_id: number; fecha_inicio: string }) => {
+    const respuesta = await api.post('/planes-tratamiento', datos);
+    return respuesta.data;
+  },
+  obtenerPorPaciente: async (paciente_id: number) => {
+    const respuesta = await api.get(`/planes-tratamiento/paciente/${paciente_id}`);
+    return respuesta.data;
+  },
+};
+
+export const agendaApi = {
+  crear: async (datos: { paciente_id?: number; plan_tratamiento_id?: number; fecha: Date; descripcion: string }) => {
+    const respuesta = await api.post('/agenda', datos);
+    return respuesta.data;
+  },
+  obtenerPorMes: async (mes: number, ano: number) => {
+    const respuesta = await api.get(`/agenda?mes=${mes}&ano=${ano}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: any) => {
+    const respuesta = await api.put(`/agenda/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/agenda/${id}`);
+    return respuesta.data;
+  },
+};
+
 export const notasApi = {
   crear: async (contenido: string) => {
     const respuesta = await api.post('/notas', { contenido });
@@ -91,6 +168,10 @@ export const notasApi = {
 export const asistenteApi = {
   obtenerFraseMotivacional: async (dias: number = 7) => {
     const respuesta = await api.post('/asistente/frase-motivacional', { dias });
+    return respuesta.data;
+  },
+  digitalizarCitas: async (imagen_base64: string) => {
+    const respuesta = await api.post('/asistente/ocr-citas', { imagen_base64 });
     return respuesta.data;
   },
 };

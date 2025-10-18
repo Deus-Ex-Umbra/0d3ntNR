@@ -1,0 +1,470 @@
+import { useState, useEffect } from 'react';
+import { MenuLateral } from '@/componentes/MenuLateral';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/componentes/ui/card';
+import { Button } from '@/componentes/ui/button';
+import { Input } from '@/componentes/ui/input';
+import { Label } from '@/componentes/ui/label';
+import { Textarea } from '@/componentes/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
+import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { agendaApi, pacientesApi } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
+import { Toaster } from '@/componentes/ui/toaster';
+
+interface Cita {
+  id: number;
+  fecha: Date;
+  descripcion: string;
+  paciente?: {
+    id: number;
+    nombre: string;
+    apellidos: string;
+    color_categoria?: string;
+  };
+}
+
+interface Paciente {
+  id: number;
+  nombre: string;
+  apellidos: string;
+}
+
+export default function Agenda() {
+  const [citas, setCitas] = useState<Cita[]>([]);
+  const [pacientes, setPacientes] = useState<Paciente[]>([]);
+  const [mes_actual, setMesActual] = useState(new Date().getMonth() + 1);
+  const [ano_actual, setAnoActual] = useState(new Date().getFullYear());
+  const [cargando, setCargando] = useState(true);
+  const [dialogo_abierto, setDialogoAbierto] = useState(false);
+  const [modo_edicion, setModoEdicion] = useState(false);
+  const [cita_seleccionada, setCitaSeleccionada] = useState<Cita | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  const [formulario, setFormulario] = useState({
+    paciente_id: 'sin_paciente',
+    fecha: '',
+    descripcion: '',
+  });
+
+  const meses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  useEffect(() => {
+    cargarDatos();
+  }, [mes_actual, ano_actual]);
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    try {
+      const [datos_citas, datos_pacientes] = await Promise.all([
+        agendaApi.obtenerPorMes(mes_actual, ano_actual),
+        pacientesApi.obtenerTodos(),
+      ]);
+      setCitas(datos_citas);
+      setPacientes(datos_pacientes);
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los datos',
+        variant: 'destructive',
+      });
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const cambiarMes = (direccion: number) => {
+    let nuevo_mes = mes_actual + direccion;
+    let nuevo_ano = ano_actual;
+
+    if (nuevo_mes > 12) {
+      nuevo_mes = 1;
+      nuevo_ano += 1;
+    } else if (nuevo_mes < 1) {
+      nuevo_mes = 12;
+      nuevo_ano -= 1;
+    }
+
+    setMesActual(nuevo_mes);
+    setAnoActual(nuevo_ano);
+  };
+
+  const abrirDialogoNuevo = () => {
+    setFormulario({
+      paciente_id: 'sin_paciente',
+      fecha: new Date().toISOString().slice(0, 16),
+      descripcion: '',
+    });
+    setModoEdicion(false);
+    setDialogoAbierto(true);
+  };
+
+  const abrirDialogoEditar = (cita: Cita) => {
+    setFormulario({
+      paciente_id: cita.paciente?.id.toString() || 'sin_paciente',
+      fecha: new Date(cita.fecha).toISOString().slice(0, 16),
+      descripcion: cita.descripcion,
+    });
+    setCitaSeleccionada(cita);
+    setModoEdicion(true);
+    setDialogoAbierto(true);
+  };
+
+  const manejarGuardar = async () => {
+    if (!formulario.fecha || !formulario.descripcion) {
+      toast({
+        title: 'Error',
+        description: 'Fecha y descripción son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const datos: any = {
+        fecha: new Date(formulario.fecha),
+        descripcion: formulario.descripcion,
+      };
+
+      if (formulario.paciente_id !== 'sin_paciente') {
+        datos.paciente_id = parseInt(formulario.paciente_id);
+      }
+
+      if (modo_edicion && cita_seleccionada) {
+        await agendaApi.actualizar(cita_seleccionada.id, datos);
+        toast({
+          title: 'Éxito',
+          description: 'Cita actualizada correctamente',
+        });
+      } else {
+        await agendaApi.crear(datos);
+        toast({
+          title: 'Éxito',
+          description: 'Cita creada correctamente',
+        });
+      }
+      setDialogoAbierto(false);
+      cargarDatos();
+    } catch (error: any) {
+      console.error('Error al guardar cita:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo guardar la cita',
+        variant: 'destructive',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const manejarEliminar = async (id: number) => {
+    if (!confirm('¿Estás seguro de eliminar esta cita?')) return;
+
+    try {
+      await agendaApi.eliminar(id);
+      toast({
+        title: 'Éxito',
+        description: 'Cita eliminada correctamente',
+      });
+      cargarDatos();
+    } catch (error) {
+      console.error('Error al eliminar cita:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar la cita',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const formatearFecha = (fecha: Date): string => {
+    return new Date(fecha).toLocaleDateString('es-BO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const formatearHora = (fecha: Date): string => {
+    return new Date(fecha).toLocaleTimeString('es-BO', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const agruparCitasPorDia = () => {
+    const grupos: { [key: string]: Cita[] } = {};
+    
+    citas.forEach(cita => {
+      const fecha_str = formatearFecha(cita.fecha);
+      if (!grupos[fecha_str]) {
+        grupos[fecha_str] = [];
+      }
+      grupos[fecha_str].push(cita);
+    });
+
+    Object.keys(grupos).forEach(fecha => {
+      grupos[fecha].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+    });
+
+    return grupos;
+  };
+
+  const citas_agrupadas = agruparCitasPorDia();
+
+  if (cargando) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
+        <MenuLateral />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="text-muted-foreground">Cargando agenda...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20">
+      <MenuLateral />
+      
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-8 space-y-8">
+          <div className="flex justify-between items-start">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
+                Agenda
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Gestiona tus citas y eventos
+              </p>
+            </div>
+
+            <Button size="lg" className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200" onClick={abrirDialogoNuevo}>
+              <Plus className="h-5 w-5 mr-2" />
+              Nueva Cita
+            </Button>
+          </div>
+
+          <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                    <Calendar className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl">
+                      {meses[mes_actual - 1]} {ano_actual}
+                    </CardTitle>
+                    <CardDescription>{citas.length} citas programadas</CardDescription>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => cambiarMes(-1)}
+                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setMesActual(new Date().getMonth() + 1);
+                      setAnoActual(new Date().getFullYear());
+                    }}
+                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
+                  >
+                    Hoy
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => cambiarMes(1)}
+                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {citas.length === 0 ? (
+                <div className="text-center py-12 space-y-4">
+                  <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      No hay citas programadas
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                      Crea tu primera cita para comenzar a organizar tu agenda
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(citas_agrupadas).map(([fecha, citas_del_dia]) => (
+                    <div key={fecha} className="space-y-3">
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        {fecha}
+                      </h3>
+                      <div className="space-y-2 pl-7">
+                        {citas_del_dia.map((cita) => (
+                          <div
+                            key={cita.id}
+                            className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-4">
+                              {cita.paciente?.color_categoria && (
+                                <div
+                                  className="w-1 h-12 rounded-full"
+                                  style={{ backgroundColor: cita.paciente.color_categoria }}
+                                />
+                              )}
+                              <div className="flex items-center gap-3">
+                                <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                                  <Clock className="h-4 w-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-foreground">
+                                    {formatearHora(cita.fecha)}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {cita.paciente 
+                                      ? `${cita.paciente.nombre} ${cita.paciente.apellidos}`
+                                      : 'Evento general'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="ml-4">
+                                <p className="text-sm text-foreground">{cita.descripcion}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => abrirDialogoEditar(cita)}
+                                className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                title="Editar"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => manejarEliminar(cita.id)}
+                                className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {modo_edicion ? 'Editar Cita' : 'Nueva Cita'}
+            </DialogTitle>
+            <DialogDescription>
+              {modo_edicion 
+                ? 'Modifica los detalles de la cita' 
+                : 'Programa una nueva cita o evento'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="paciente">Paciente (opcional)</Label>
+              <Select
+                value={formulario.paciente_id}
+                onValueChange={(value) => setFormulario({ ...formulario, paciente_id: value })}
+              >
+                <SelectTrigger className="hover:border-primary/50 focus:border-primary transition-all duration-200">
+                  <SelectValue placeholder="Evento general (sin paciente)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sin_paciente">Evento general (sin paciente)</SelectItem>
+                  {pacientes.map((paciente) => (
+                    <SelectItem key={paciente.id} value={paciente.id.toString()}>
+                      {paciente.nombre} {paciente.apellidos}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fecha">Fecha y Hora *</Label>
+              <Input
+                id="fecha"
+                type="datetime-local"
+                value={formulario.fecha}
+                onChange={(e) => setFormulario({ ...formulario, fecha: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descripcion">Descripción *</Label>
+              <Textarea
+                id="descripcion"
+                value={formulario.descripcion}
+                onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
+                placeholder="Ej: Consulta general, Limpieza dental, Reunión..."
+                rows={3}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoAbierto(false)}
+              disabled={guardando}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={manejarGuardar} 
+              disabled={guardando}
+              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {modo_edicion ? 'Actualizar' : 'Crear'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Toaster />
+    </div>
+  );
+}

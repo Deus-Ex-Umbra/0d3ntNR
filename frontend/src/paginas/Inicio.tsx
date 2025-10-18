@@ -16,7 +16,7 @@ export default function Inicio() {
   const actividad_reciente = [
     { 
       tipo: 'Sistema', 
-      descripcion: 'Bienvenido a DentalApp - Tu sistema de gestión dental', 
+      descripcion: 'Bienvenido a 0d3ntApp - Tu sistema de gestión dental', 
       tiempo: 'Ahora', 
       icono: Sparkles,
       color: 'text-primary'
@@ -31,7 +31,7 @@ export default function Inicio() {
         <div className="p-8 space-y-8">
           <div className="space-y-4">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-foreground tracking-tight">
+              <h1 className="text-4xl font-bold text-foreground tracking-tight hover:text-primary transition-colors duration-200">
                 Bienvenido, <span className="text-primary">{usuario?.nombre}</span>
               </h1>
               <p className="text-lg text-muted-foreground">
@@ -39,15 +39,15 @@ export default function Inicio() {
               </p>
             </div>
 
-            <div className="p-5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20">
+            <div className="p-5 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
               <div className="flex items-start gap-4">
-                <div className="bg-primary/20 p-3 rounded-xl mt-1">
+                <div className="bg-primary/20 p-3 rounded-xl mt-1 hover:scale-110 transition-transform duration-200">
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold text-primary mb-1">Mensaje del día</h3>
                   <p className="text-base text-foreground leading-relaxed">
-                    ¡Bienvenido a DentalApp! Estamos listos para ayudarte a gestionar tu consultorio.
+                    ¡Bienvenido a 0d3ntApp! Estamos listos para ayudarte a gestionar tu consultorio.
                   </p>
                 </div>
               </div>
@@ -58,12 +58,12 @@ export default function Inicio() {
             {tarjetas_estadisticas.map((tarjeta, index) => {
               const Icono = tarjeta.icono;
               return (
-                <Card key={index} className="border-2 border-border shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
+                <Card key={index} className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-all duration-200 cursor-pointer">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
                       {tarjeta.titulo}
                     </CardTitle>
-                    <div className={`${tarjeta.fondo} p-2 rounded-lg`}>
+                    <div className={`${tarjeta.fondo} p-2 rounded-lg hover:scale-110 transition-transform duration-200`}>
                       <Icono className={`h-5 w-5 ${tarjeta.color}`} />
                     </div>
                   </CardHeader>
@@ -77,26 +77,26 @@ export default function Inicio() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="border-2 border-border shadow-lg">
+            <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-lg">
+                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                     <TrendingUp className="h-5 w-5 text-primary" />
                   </div>
                   <CardTitle className="text-xl">Resumen Financiero</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
                   <span className="text-muted-foreground font-medium">Total Ingresos</span>
                   <span className="font-bold text-green-400 text-lg">$0</span>
                 </div>
-                <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30">
+                <div className="flex justify-between items-center p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
                   <span className="text-muted-foreground font-medium">Total Egresos</span>
                   <span className="font-bold text-red-400 text-lg">$0</span>
                 </div>
                 <div className="border-t-2 border-border pt-4 mt-4">
-                  <div className="flex justify-between items-center p-4 rounded-lg bg-primary/10">
+                  <div className="flex justify-between items-center p-4 rounded-lg bg-primary/10 hover:bg-primary/20 hover:scale-105 transition-all duration-200">
                     <span className="font-bold text-foreground text-lg">Balance</span>
                     <span className="text-2xl font-bold text-primary">$0</span>
                   </div>
@@ -104,10 +104,10 @@ export default function Inicio() {
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-border shadow-lg">
+            <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-lg">
+                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                     <Clock className="h-5 w-5 text-primary" />
                   </div>
                   <CardTitle className="text-xl">Actividad Reciente</CardTitle>
@@ -117,8 +117,8 @@ export default function Inicio() {
                 {actividad_reciente.map((item, index) => {
                   const Icono = item.icono;
                   return (
-                    <div key={index} className="flex items-start gap-3 rounded-lg bg-secondary/30 p-4 border border-border hover:bg-secondary/50 transition-colors">
-                      <div className="rounded-full bg-primary/20 p-2">
+                    <div key={index} className="flex items-start gap-3 rounded-lg bg-secondary/30 p-4 border border-border hover:bg-secondary/50 hover:scale-105 transition-all duration-200">
+                      <div className="rounded-full bg-primary/20 p-2 hover:scale-110 transition-transform duration-200">
                         <Icono className={`h-5 w-5 ${item.color}`} />
                       </div>
                       <div className="flex-1 space-y-1">
@@ -133,13 +133,13 @@ export default function Inicio() {
             </Card>
           </div>
 
-          <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-primary/20">
+          <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <div className="flex items-center gap-4">
-              <div className="bg-primary/20 p-3 rounded-xl">
+              <div className="bg-primary/20 p-3 rounded-xl hover:scale-110 transition-transform duration-200">
                 <Activity className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground">¡Comienza a usar DentalApp!</h3>
+                <h3 className="text-lg font-bold text-foreground">¡Comienza a usar 0d3ntApp!</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Registra tu primer paciente o configura un tratamiento desde el menú lateral
                 </p>
