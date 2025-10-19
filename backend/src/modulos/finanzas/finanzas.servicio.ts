@@ -37,7 +37,7 @@ export class FinanzasServicio {
       plan_tratamiento: registrar_pago_dto.plan_tratamiento_id ? { id: registrar_pago_dto.plan_tratamiento_id } as any : null,
       cita: registrar_pago_dto.cita_id ? { id: registrar_pago_dto.cita_id } as any : null,
     });
-    
+
     if (registrar_pago_dto.plan_tratamiento_id) {
       await this.planes_servicio.registrarAbono(registrar_pago_dto.plan_tratamiento_id, registrar_pago_dto.monto);
     }
@@ -45,19 +45,20 @@ export class FinanzasServicio {
     if (registrar_pago_dto.cita_id) {
       await this.agenda_servicio.actualizar(registrar_pago_dto.cita_id, { estado_pago: 'pagado' });
     }
-    
+
     return this.pago_repositorio.save(nuevo_pago);
   }
 
   async generarReporte(fecha_inicio_str?: string, fecha_fin_str?: string) {
     const fecha_inicio = fecha_inicio_str ? new Date(fecha_inicio_str) : new Date(0);
     const fecha_fin = fecha_fin_str ? new Date(fecha_fin_str) : new Date();
+    fecha_fin.setHours(23, 59, 59, 999);
 
-    const pagos = await this.pago_repositorio.find({ 
+    const pagos = await this.pago_repositorio.find({
         where: { fecha: Between(fecha_inicio, fecha_fin) },
         relations: ['plan_tratamiento', 'plan_tratamiento.paciente', 'cita']
     });
-    const egresos = await this.egreso_repositorio.find({ 
+    const egresos = await this.egreso_repositorio.find({
       where: { fecha: Between(fecha_inicio, fecha_fin) },
       relations: ['cita']
     });
@@ -67,17 +68,17 @@ export class FinanzasServicio {
     const balance = total_ingresos - total_egresos;
 
     const movimientos = [
-        ...pagos.map(p => ({ 
-          tipo: 'ingreso' as const, 
-          fecha: p.fecha, 
-          monto: p.monto, 
-          concepto: p.concepto || (p.plan_tratamiento ? `Pago de ${p.plan_tratamiento.paciente.nombre} ${p.plan_tratamiento.paciente.apellidos}` : 'Pago general'),
+        ...pagos.map(p => ({
+          tipo: 'ingreso' as const,
+          fecha: p.fecha,
+          monto: Number(p.monto),
+          concepto: p.concepto || (p.plan_tratamiento?.paciente ? `Pago de ${p.plan_tratamiento.paciente.nombre} ${p.plan_tratamiento.paciente.apellidos}` : 'Pago general'),
           cita_id: p.cita?.id
         })),
-        ...egresos.map(e => ({ 
-          tipo: 'egreso' as const, 
-          fecha: e.fecha, 
-          monto: e.monto, 
+        ...egresos.map(e => ({
+          tipo: 'egreso' as const,
+          fecha: e.fecha,
+          monto: Number(e.monto),
           concepto: e.concepto,
           cita_id: e.cita?.id
         }))

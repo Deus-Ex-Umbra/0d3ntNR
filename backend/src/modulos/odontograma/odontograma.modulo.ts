@@ -11,3 +11,4 @@ import { PacientesModule } from '../pacientes/pacientes.modulo';
   providers: [OdontogramaServicio],
 })
 export class OdontogramaModule {}
+

@@ -6,6 +6,7 @@ import { AsignarPlanTratamientoDto } from './dto/asignar-plan-tratamiento.dto';
 import { PacientesServicio } from '../pacientes/pacientes.servicio';
 import { TratamientosServicio } from './tratamientos.servicio';
 import { AgendaServicio } from '../agenda/agenda.servicio';
+import { Cita } from '../agenda/entidades/cita.entidad';
 
 @Injectable()
 export class PlanesTratamientoServicio {
@@ -28,31 +29,37 @@ export class PlanesTratamientoServicio {
       costo_total: tratamiento_plantilla.costo_total,
       total_abonado: 0,
     });
-    
+
     const plan_guardado = await this.plan_repositorio.save(nuevo_plan);
 
     const fecha_actual = new Date(fecha_inicio);
+    fecha_actual.setUTCHours(0, 0, 0, 0);
+    const citas_promesas: Promise<Cita>[] = [];
     for (let i = 0; i < tratamiento_plantilla.numero_citas; i++) {
-      await this.agenda_servicio.crear({
-        paciente_id: paciente.id,
-        plan_tratamiento_id: plan_guardado.id,
-        fecha: new Date(fecha_actual),
-        descripcion: `${tratamiento_plantilla.nombre} - Cita ${i + 1}`,
-        estado_pago: 'pendiente',
-      });
-      fecha_actual.setDate(fecha_actual.getDate() + 7);
+        const fecha_cita = new Date(fecha_actual);
+        fecha_cita.setDate(fecha_cita.getDate() + i * 7);
+        citas_promesas.push(
+            this.agenda_servicio.crear({
+                paciente_id: paciente.id,
+                plan_tratamiento_id: plan_guardado.id,
+                fecha: fecha_cita,
+                descripcion: `${tratamiento_plantilla.nombre} - Cita ${i + 1}`,
+                estado_pago: 'pendiente',
+            })
+        );
     }
+    await Promise.all(citas_promesas);
 
     return this.encontrarPlanPorId(plan_guardado.id);
   }
-  
+
   async obtenerTodos(): Promise<PlanTratamiento[]> {
     return this.plan_repositorio.find({
       relations: ['paciente', 'tratamiento', 'citas', 'pagos'],
       order: { id: 'DESC' },
     });
   }
-  
+
   async encontrarPlanPorId(id: number): Promise<PlanTratamiento> {
     const plan = await this.plan_repositorio.findOne({
       where: { id },
@@ -68,12 +75,13 @@ export class PlanesTratamientoServicio {
     return this.plan_repositorio.find({
       where: { paciente: { id: paciente_id } },
       relations: ['tratamiento', 'citas', 'pagos'],
+      order: { id: 'DESC' },
     });
   }
 
   async registrarAbono(plan_id: number, monto: number): Promise<PlanTratamiento> {
     const plan = await this.encontrarPlanPorId(plan_id);
-    plan.total_abonado += monto;
+    plan.total_abonado = Number(plan.total_abonado) + Number(monto);
     return this.plan_repositorio.save(plan);
   }
 }

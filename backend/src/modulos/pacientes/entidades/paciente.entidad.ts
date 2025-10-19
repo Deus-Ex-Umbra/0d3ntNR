@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { Odontograma } from '../../odontograma/entidades/odontograma.entidad';
 import { PlanTratamiento } from '../../tratamientos/entidades/plan-tratamiento.entidad';
+import { ArchivoAdjunto } from '../../archivos-adjuntos/entidades/archivo-adjunto.entidad';
 import { PacienteAlergia } from './paciente-alergia.entidad';
 import { PacienteEnfermedad } from './paciente-enfermedad.entidad';
 import { PacienteMedicamento } from './paciente-medicamento.entidad';
@@ -29,15 +30,6 @@ export class Paciente {
   notas_generales: string;
 
   @Column('text', { nullable: true })
-  alergias: string;
-
-  @Column('text', { nullable: true })
-  enfermedades: string;
-
-  @Column('text', { nullable: true })
-  medicamentos: string;
-
-  @Column('text', { nullable: true })
   notas_medicas: string;
 
   @Column({ nullable: true })
@@ -48,6 +40,9 @@ export class Paciente {
 
   @OneToMany(() => PlanTratamiento, (plan) => plan.paciente)
   planes_tratamiento: PlanTratamiento[];
+
+  @OneToMany(() => ArchivoAdjunto, (archivo) => archivo.paciente)
+  archivos_adjuntos: ArchivoAdjunto[];
 
   @OneToMany(() => PacienteAlergia, (pa) => pa.paciente, { cascade: true })
   paciente_alergias: PacienteAlergia[];

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { UsuariosServicio } from './usuarios.servicio';
 import {
   ApiTags,
@@ -8,6 +8,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../autenticacion/guardias/jwt-auth.guardia';
 import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
+import { CambiarContrasenaDto } from './dto/cambiar-contrasena.dto';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth('JWT-auth')
@@ -24,14 +25,6 @@ export class UsuariosControlador {
   @ApiResponse({
     status: 200,
     description: 'Perfil del usuario',
-    schema: {
-      example: {
-        id: 1,
-        nombre: 'Dr. Juan Pérez',
-        correo: 'juan@ejemplo.com',
-        avatar: null,
-      },
-    },
   })
   obtenerPerfil(@Request() req) {
     return this.usuarios_servicio.encontrarPorId(req.user.id);
@@ -54,5 +47,17 @@ export class UsuariosControlador {
       req.user.id,
       actualizar_usuario_dto,
     );
+  }
+
+  @Put('perfil/cambiar-contrasena')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Cambiar la contraseña del usuario actual' })
+  @ApiResponse({ status: 204, description: 'Contraseña cambiada exitosamente' })
+  @ApiResponse({ status: 401, description: 'La contraseña actual es incorrecta' })
+  async cambiarContrasena(
+    @Request() req,
+    @Body() cambiar_contrasena_dto: CambiarContrasenaDto,
+  ) {
+    await this.usuarios_servicio.cambiarContrasena(req.user.id, cambiar_contrasena_dto);
   }
 }

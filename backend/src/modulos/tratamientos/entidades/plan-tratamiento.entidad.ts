@@ -3,6 +3,7 @@ import { Paciente } from '../../pacientes/entidades/paciente.entidad';
 import { Tratamiento } from './tratamiento.entidad';
 import { Cita } from '../../agenda/entidades/cita.entidad';
 import { Pago } from '../../finanzas/entidades/pago.entidad';
+import { ArchivoAdjunto } from '../../archivos-adjuntos/entidades/archivo-adjunto.entidad';
 
 @Entity()
 export class PlanTratamiento {
@@ -26,4 +27,7 @@ export class PlanTratamiento {
   
   @OneToMany(() => Pago, (pago) => pago.plan_tratamiento)
   pagos: Pago[];
+
+  @OneToMany(() => ArchivoAdjunto, (archivo) => archivo.plan_tratamiento)
+  archivos_adjuntos: ArchivoAdjunto[];
 }

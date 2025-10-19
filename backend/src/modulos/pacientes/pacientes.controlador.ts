@@ -12,6 +12,7 @@ import {
 import { PacientesServicio } from './pacientes.servicio';
 import { CrearPacienteDto } from './dto/crear-paciente.dto';
 import { ActualizarPacienteDto } from './dto/actualizar-paciente.dto';
+import { RespuestaAnamnesisDto } from './dto/respuesta-anamnesis.dto';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -54,6 +55,14 @@ export class PacientesControlador {
   @ApiResponse({ status: 404, description: 'Paciente no encontrado' })
   encontrarUno(@Param('id') id: string) {
     return this.pacientes_servicio.encontrarPorId(+id);
+  }
+
+  @Get(':id/anamnesis')
+  @ApiOperation({ summary: 'Obtener la anamnesis de un paciente por ID' })
+  @ApiResponse({ status: 200, description: 'Anamnesis del paciente', type: RespuestaAnamnesisDto })
+  @ApiResponse({ status: 404, description: 'Paciente no encontrado' })
+  obtenerAnamnesis(@Param('id') id: string): Promise<RespuestaAnamnesisDto> {
+    return this.pacientes_servicio.obtenerAnamnesisPorPaciente(+id);
   }
 
   @Put(':id')

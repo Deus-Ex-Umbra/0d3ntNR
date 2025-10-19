@@ -3,6 +3,7 @@ import { UsuariosServicio } from '../usuarios/usuarios.servicio';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { RegistroUsuarioDto } from './dto/registro-usuario.dto';
+import { Usuario } from '../usuarios/entidades/usuario.entidad';
 
 @Injectable()
 export class AutenticacionServicio {
@@ -11,37 +12,32 @@ export class AutenticacionServicio {
     private readonly jwt_servicio: JwtService,
   ) {}
 
-  async validarUsuario(correo: string, contrasena: string): Promise<any> {
-    const usuario = await this.usuarios_servicio.encontrarPorCorreo(correo);
-    
+  async validarUsuario(correo: string, contrasena_plana: string): Promise<Omit<Usuario, 'contrasena'> | null> {
+    const usuario = await this.usuarios_servicio.encontrarPorCorreoConContrasena(correo);
+
     if (!usuario) {
-      console.log(`Usuario no encontrado: ${correo}`);
       return null;
     }
 
-    const contrasena_valida = await bcrypt.compare(contrasena, usuario.contrasena);
-    
+    const contrasena_valida = await bcrypt.compare(contrasena_plana, usuario.contrasena);
+
     if (contrasena_valida) {
       const { contrasena, ...resultado } = usuario;
-      console.log(`Usuario validado correctamente: ${correo}`);
       return resultado;
     }
-    
-    console.log(`Contraseña incorrecta para: ${correo}`);
+
     return null;
   }
 
-  async iniciarSesion(usuario: any) {
+  async iniciarSesion(usuario: Omit<Usuario, 'contrasena'>) {
     const payload = { correo: usuario.correo, sub: usuario.id };
     const token = this.jwt_servicio.sign(payload);
-    
-    const usuario_datos = await this.usuarios_servicio.encontrarPorId(usuario.id);
 
-    console.log(`Token JWT generado para usuario: ${usuario.correo}`);
+    const usuario_datos_completos = await this.usuarios_servicio.encontrarPorId(usuario.id);
 
     return {
       token_acceso: token,
-      usuario: usuario_datos,
+      usuario: usuario_datos_completos,
     };
   }
 

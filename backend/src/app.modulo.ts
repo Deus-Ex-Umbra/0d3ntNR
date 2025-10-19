@@ -15,6 +15,7 @@ import { NotasModule } from './modulos/notas/notas.modulo';
 import { AsistenteModule } from './modulos/asistente/asistente.modulo';
 import { EstadisticasModule } from './modulos/estadisticas/estadisticas.modulo';
 import { CatalogoModule } from './modulos/catalogo/catalogo.modulo';
+import { ArchivosAdjuntosModule } from './modulos/archivos-adjuntos/archivos-adjuntos.modulo';
 import { Paciente } from './modulos/pacientes/entidades/paciente.entidad';
 import { PacienteAlergia } from './modulos/pacientes/entidades/paciente-alergia.entidad';
 import { PacienteEnfermedad } from './modulos/pacientes/entidades/paciente-enfermedad.entidad';
@@ -31,6 +32,8 @@ import { Alergia } from './modulos/catalogo/entidades/alergia.entidad';
 import { Enfermedad } from './modulos/catalogo/entidades/enfermedad.entidad';
 import { Medicamento } from './modulos/catalogo/entidades/medicamento.entidad';
 import { ColorCategoria } from './modulos/catalogo/entidades/color-categoria.entidad';
+import { Simbologia } from './modulos/catalogo/entidades/simbologia.entidad';
+import { ArchivoAdjunto } from './modulos/archivos-adjuntos/entidades/archivo-adjunto.entidad';
 
 @Module({
   imports: [
@@ -55,6 +58,8 @@ import { ColorCategoria } from './modulos/catalogo/entidades/color-categoria.ent
         Enfermedad,
         Medicamento,
         ColorCategoria,
+        Simbologia,
+        ArchivoAdjunto,
       ],
       synchronize: true,
     }),
@@ -70,8 +75,10 @@ import { ColorCategoria } from './modulos/catalogo/entidades/color-categoria.ent
     AsistenteModule,
     EstadisticasModule,
     CatalogoModule,
+    ArchivosAdjuntosModule,
   ],
   controllers: [AppControlador],
   providers: [AppServicio],
 })
 export class AppModule {}
+

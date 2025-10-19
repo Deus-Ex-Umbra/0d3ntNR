@@ -10,6 +10,7 @@ import { Enfermedad } from '../catalogo/entidades/enfermedad.entidad';
 import { Medicamento } from '../catalogo/entidades/medicamento.entidad';
 import { CrearPacienteDto } from './dto/crear-paciente.dto';
 import { ActualizarPacienteDto } from './dto/actualizar-paciente.dto';
+import { RespuestaAnamnesisDto } from './dto/respuesta-anamnesis.dto';
 
 @Injectable()
 export class PacientesServicio {
@@ -32,7 +33,7 @@ export class PacientesServicio {
 
   async crear(crear_paciente_dto: CrearPacienteDto): Promise<Paciente> {
     const { alergias_ids, enfermedades_ids, medicamentos_ids, ...datos_paciente } = crear_paciente_dto;
-    
+
     const nuevo_paciente = this.paciente_repositorio.create(datos_paciente);
     const paciente_guardado = await this.paciente_repositorio.save(nuevo_paciente);
 
@@ -67,12 +68,12 @@ export class PacientesServicio {
   }
 
   async encontrarPorId(id: number): Promise<Paciente> {
-    const paciente = await this.paciente_repositorio.findOne({ 
+    const paciente = await this.paciente_repositorio.findOne({
       where: { id },
       relations: [
-        'odontogramas', 
-        'planes_tratamiento', 
-        'planes_tratamiento.citas', 
+        'odontogramas',
+        'planes_tratamiento',
+        'planes_tratamiento.citas',
         'planes_tratamiento.pagos',
         'paciente_alergias',
         'paciente_alergias.alergia',
@@ -80,7 +81,7 @@ export class PacientesServicio {
         'paciente_enfermedades.enfermedad',
         'paciente_medicamentos',
         'paciente_medicamentos.medicamento',
-      ] 
+      ],
     });
     if (!paciente) {
       throw new NotFoundException(`Paciente con ID "${id}" no encontrado.`);
@@ -90,16 +91,16 @@ export class PacientesServicio {
 
   async actualizar(id: number, actualizar_paciente_dto: ActualizarPacienteDto): Promise<Paciente> {
     const { alergias_ids, enfermedades_ids, medicamentos_ids, ...datos_paciente } = actualizar_paciente_dto;
-    
+
     const paciente = await this.paciente_repositorio.preload({
       id: id,
       ...datos_paciente,
     });
-    
+
     if (!paciente) {
       throw new NotFoundException(`Paciente con ID "${id}" no encontrado.`);
     }
-    
+
     await this.paciente_repositorio.save(paciente);
 
     if (alergias_ids !== undefined) {
@@ -133,9 +134,37 @@ export class PacientesServicio {
     }
   }
 
+  async obtenerAnamnesisPorPaciente(id: number): Promise<RespuestaAnamnesisDto> {
+    const paciente = await this.paciente_repositorio.findOne({
+      where: { id },
+      relations: [
+        'paciente_alergias',
+        'paciente_alergias.alergia',
+        'paciente_enfermedades',
+        'paciente_enfermedades.enfermedad',
+        'paciente_medicamentos',
+        'paciente_medicamentos.medicamento',
+      ],
+    });
+
+    if (!paciente) {
+      throw new NotFoundException(`Paciente con ID "${id}" no encontrado.`);
+    }
+
+    const alergias = paciente.paciente_alergias.map(pa => pa.alergia).filter(Boolean);
+    const enfermedades = paciente.paciente_enfermedades.map(pe => pe.enfermedad).filter(Boolean);
+    const medicamentos = paciente.paciente_medicamentos.map(pm => pm.medicamento).filter(Boolean);
+
+    return {
+      alergias,
+      enfermedades,
+      medicamentos,
+    };
+  }
+
   private async asignarAlergias(paciente_id: number, alergias_ids: number[]): Promise<void> {
     const alergias = await this.alergia_repositorio.findBy({ id: In(alergias_ids) });
-    const relaciones = alergias.map(alergia => 
+    const relaciones = alergias.map(alergia =>
       this.paciente_alergia_repositorio.create({
         paciente: { id: paciente_id } as Paciente,
         alergia,
@@ -146,7 +175,7 @@ export class PacientesServicio {
 
   private async asignarEnfermedades(paciente_id: number, enfermedades_ids: number[]): Promise<void> {
     const enfermedades = await this.enfermedad_repositorio.findBy({ id: In(enfermedades_ids) });
-    const relaciones = enfermedades.map(enfermedad => 
+    const relaciones = enfermedades.map(enfermedad =>
       this.paciente_enfermedad_repositorio.create({
         paciente: { id: paciente_id } as Paciente,
         enfermedad,
@@ -157,7 +186,7 @@ export class PacientesServicio {
 
   private async asignarMedicamentos(paciente_id: number, medicamentos_ids: number[]): Promise<void> {
     const medicamentos = await this.medicamento_repositorio.findBy({ id: In(medicamentos_ids) });
-    const relaciones = medicamentos.map(medicamento => 
+    const relaciones = medicamentos.map(medicamento =>
       this.paciente_medicamento_repositorio.create({
         paciente: { id: paciente_id } as Paciente,
         medicamento,
