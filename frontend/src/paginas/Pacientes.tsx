@@ -14,6 +14,7 @@ import { pacientesApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
+import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
 
 interface Paciente {
   id: number;
@@ -850,7 +851,7 @@ export default function Pacientes() {
       </Dialog>
 
       <Dialog open={dialogo_ver_abierto} onOpenChange={setDialogoVerAbierto}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCircle className="h-6 w-6" />
@@ -883,9 +884,10 @@ export default function Pacientes() {
               </div>
 
               <Tabs defaultValue="contacto" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="contacto">Contacto</TabsTrigger>
                   <TabsTrigger value="medico">Información Médica</TabsTrigger>
+                  <TabsTrigger value="archivos">Archivos</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="contacto" className="space-y-4 mt-4">
@@ -985,6 +987,12 @@ export default function Pacientes() {
                       </div>
                     )}
                   </div>
+                </TabsContent>
+                <TabsContent value="archivos" className="space-y-4 mt-4">
+                  <GestorArchivos 
+                    paciente_id={paciente_seleccionado.id} 
+                    modo="paciente"
+                  />
                 </TabsContent>
               </Tabs>
             </div>

@@ -67,6 +67,10 @@ export const usuariosApi = {
     const respuesta = await api.put('/usuarios/perfil', datos);
     return respuesta.data;
   },
+  cambiarContrasena: async (datos: { contrasena_actual: string; nueva_contrasena: string }) => {
+    const respuesta = await api.put('/usuarios/perfil/cambiar-contrasena', datos);
+    return respuesta.data;
+  },
 };
 
 export const pacientesApi = {
@@ -81,6 +85,10 @@ export const pacientesApi = {
   },
   obtenerPorId: async (id: number) => {
     const respuesta = await api.get(`/pacientes/${id}`);
+    return respuesta.data;
+  },
+  obtenerAnamnesis: async (id: number) => {
+    const respuesta = await api.get(`/pacientes/${id}/anamnesis`);
     return respuesta.data;
   },
   actualizar: async (id: number, datos: any) => {
@@ -261,6 +269,36 @@ export const catalogoApi = {
   },
   eliminarColor: async (id: number) => {
     const respuesta = await api.delete(`/catalogo/colores/${id}`);
+    return respuesta.data;
+  },
+};
+
+export const archivosApi = {
+  subir: async (datos: {
+    nombre_archivo: string;
+    tipo_mime: string;
+    descripcion?: string;
+    contenido_base64: string;
+    paciente_id: number;
+    plan_tratamiento_id?: number;
+  }) => {
+    const respuesta = await api.post('/archivos-adjuntos', datos);
+    return respuesta.data;
+  },
+  obtenerPorPaciente: async (paciente_id: number) => {
+    const respuesta = await api.get(`/archivos-adjuntos/paciente/${paciente_id}`);
+    return respuesta.data;
+  },
+  obtenerPorPlan: async (plan_id: number) => {
+    const respuesta = await api.get(`/archivos-adjuntos/plan-tratamiento/${plan_id}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: { nombre_archivo?: string; descripcion?: string }) => {
+    const respuesta = await api.put(`/archivos-adjuntos/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/archivos-adjuntos/${id}`);
     return respuesta.data;
   },
 };
