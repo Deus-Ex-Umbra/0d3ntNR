@@ -9,14 +9,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Badge } from '@/componentes/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/componentes/ui/table';
-import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, Palette, MessageCircle } from 'lucide-react';
+import { Users, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, UserCircle, Palette } from 'lucide-react';
 import { pacientesApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { SelectConAgregar } from '@/componentes/ui/select-with-add';
 import { GestorArchivos } from '@/componentes/archivos/gestor-archivos';
-import { PhoneInput, formatearTelefonoCompleto, separarTelefono } from '@/componentes/ui/phone-input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/componentes/ui/select';
 
 interface Paciente {
   id: number;
@@ -47,9 +45,11 @@ export default function Pacientes() {
   const [busqueda, setBusqueda] = useState('');
   const [dialogo_abierto, setDialogoAbierto] = useState(false);
   const [dialogo_ver_abierto, setDialogoVerAbierto] = useState(false);
+  const [dialogo_color_abierto, setDialogoColorAbierto] = useState(false);
   const [paciente_seleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
   const [modo_edicion, setModoEdicion] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [color_personalizado, setColorPersonalizado] = useState('#808080');
 
   const [catalogos, setCatalogos] = useState({
     alergias: [] as ItemCatalogo[],
@@ -61,8 +61,7 @@ export default function Pacientes() {
   const [formulario, setFormulario] = useState({
     nombre: '',
     apellidos: '',
-    codigo_pais: '+591',
-    numero_telefono: '',
+    telefono: '',
     correo: '',
     direccion: '',
     notas_generales: '',
@@ -113,8 +112,7 @@ export default function Pacientes() {
     setFormulario({
       nombre: '',
       apellidos: '',
-      codigo_pais: '+591',
-      numero_telefono: '',
+      telefono: '',
       correo: '',
       direccion: '',
       notas_generales: '',
@@ -130,14 +128,13 @@ export default function Pacientes() {
 
   const abrirDialogoEditar = async (paciente: Paciente) => {
     try {
+      // Cargar datos completos del paciente desde el servidor
       const datos_completos = await pacientesApi.obtenerPorId(paciente.id);
-      const { codigo_pais, numero } = separarTelefono(datos_completos.telefono || '');
       
       setFormulario({
         nombre: datos_completos.nombre,
         apellidos: datos_completos.apellidos,
-        codigo_pais,
-        numero_telefono: numero,
+        telefono: datos_completos.telefono || '',
         correo: datos_completos.correo || '',
         direccion: datos_completos.direccion || '',
         notas_generales: datos_completos.notas_generales || '',
@@ -171,14 +168,10 @@ export default function Pacientes() {
 
     setGuardando(true);
     try {
-      const telefono_completo = formulario.numero_telefono 
-        ? formatearTelefonoCompleto(formulario.codigo_pais, formulario.numero_telefono)
-        : undefined;
-
       const datos: any = {
         nombre: formulario.nombre,
         apellidos: formulario.apellidos,
-        telefono: telefono_completo,
+        telefono: formulario.telefono || undefined,
         correo: formulario.correo || undefined,
         direccion: formulario.direccion || undefined,
         notas_generales: formulario.notas_generales || undefined,
@@ -250,14 +243,28 @@ export default function Pacientes() {
     }
   };
 
-  const obtenerColorInfo = (color_id: string) => {
-    const color = catalogos.colores.find(c => c.color === color_id);
-    return color || { nombre: 'Sin categoría', descripcion: '', color: color_id };
+  const seleccionarColorPredefinido = (color: string) => {
+    setFormulario({ ...formulario, color_categoria: color });
+    setDialogoColorAbierto(false);
   };
 
-  const abrirWhatsApp = (telefono: string) => {
-    const telefono_limpio = telefono.replace(/[^\d+]/g, '');
-    window.open(`https://wa.me/${telefono_limpio}`, '_blank');
+  const agregarColorPersonalizado = () => {
+    setFormulario({ ...formulario, color_categoria: color_personalizado });
+    setDialogoColorAbierto(false);
+    toast({
+      title: 'Color personalizado agregado',
+      description: 'El color ha sido asignado al paciente',
+    });
+  };
+
+  const obtenerNombreColor = (color_id: string) => {
+    const color = catalogos.colores.find(c => c.color === color_id);
+    return color?.nombre || 'Color personalizado';
+  };
+
+  const obtenerDescripcionColor = (color_id: string) => {
+    const color = catalogos.colores.find(c => c.color === color_id);
+    return color?.descripcion || 'Color personalizado';
   };
 
   const agregarAlergia = async (nombre: string) => {
@@ -469,29 +476,14 @@ export default function Pacientes() {
                             <div
                               className="w-4 h-4 rounded-full hover:scale-125 transition-transform duration-200 cursor-help"
                               style={{ backgroundColor: paciente.color_categoria }}
-                              title={obtenerColorInfo(paciente.color_categoria).descripcion || obtenerColorInfo(paciente.color_categoria).nombre}
+                              title={obtenerDescripcionColor(paciente.color_categoria)}
                             />
                           )}
                         </TableCell>
                         <TableCell className="font-medium">
                           {paciente.nombre} {paciente.apellidos}
                         </TableCell>
-                        <TableCell>
-                          {paciente.telefono ? (
-                            <div className="flex items-center gap-2">
-                              <span>{paciente.telefono}</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 hover:bg-green-500/20 hover:text-green-500 transition-all"
-                                onClick={() => abrirWhatsApp(paciente.telefono!)}
-                                title="Abrir WhatsApp"
-                              >
-                                <MessageCircle className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          ) : '-'}
-                        </TableCell>
+                        <TableCell>{paciente.telefono || '-'}</TableCell>
                         <TableCell>{paciente.correo || '-'}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
@@ -532,6 +524,7 @@ export default function Pacientes() {
         </div>
       </div>
 
+      {/* Diálogo de Crear/Editar Paciente */}
       <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -577,13 +570,16 @@ export default function Pacientes() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <PhoneInput
-                  codigo_pais={formulario.codigo_pais}
-                  numero={formulario.numero_telefono}
-                  onCodigoPaisChange={(codigo) => setFormulario({ ...formulario, codigo_pais: codigo })}
-                  onNumeroChange={(numero) => setFormulario({ ...formulario, numero_telefono: numero })}
-                  placeholder="70123456"
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Input
+                    id="telefono"
+                    value={formulario.telefono}
+                    onChange={(e) => setFormulario({ ...formulario, telefono: e.target.value })}
+                    placeholder="70123456"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="correo">Correo Electrónico</Label>
@@ -622,49 +618,54 @@ export default function Pacientes() {
               </div>
 
               <div className="space-y-2">
-                <Label>Color de Categoría</Label>
-                <Select
-                  value={formulario.color_categoria}
-                  onValueChange={(valor) => setFormulario({ ...formulario, color_categoria: valor })}
-                >
-                  <SelectTrigger className="hover:border-primary/50 focus:border-primary transition-all duration-200">
-                    <SelectValue placeholder="Seleccionar color de categoría">
-                      {formulario.color_categoria && (
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: formulario.color_categoria }}
-                          />
-                          <span>{obtenerColorInfo(formulario.color_categoria).nombre}</span>
-                        </div>
-                      )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">
-                      <span className="text-muted-foreground">Sin categoría</span>
-                    </SelectItem>
-                    {catalogos.colores.filter(c => c.color).map((color) => (
-                      <SelectItem key={color.id} value={color.color!}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: color.color! }}
-                          />
-                          <div className="flex-1">
-                            <p className="font-medium">{color.nombre}</p>
-                            {color.descripcion && (
-                              <p className="text-xs text-muted-foreground">{color.descripcion}</p>
-                            )}
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Puedes agregar más colores en Configuración → Catálogos
-                </p>
+                <div className="flex items-center justify-between">
+                  <Label>Color de Categoría</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDialogoColorAbierto(true)}
+                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
+                  >
+                    <Palette className="h-4 w-4 mr-2" />
+                    Seleccionar Color
+                  </Button>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {catalogos.colores.filter(c => c.color).map((color) => (
+                    <button
+                      key={color.id}
+                      type="button"
+                      className={`group relative w-12 h-12 rounded-lg border-2 transition-all hover:scale-110 ${
+                        formulario.color_categoria === color.color
+                          ? 'border-foreground scale-110 shadow-lg'
+                          : 'border-transparent hover:border-border'
+                      }`}
+                      style={{ backgroundColor: color.color! }}
+                      onClick={() => setFormulario({ ...formulario, color_categoria: color.color! })}
+                      title={color.descripcion}
+                    >
+                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                        {color.nombre}
+                      </span>
+                    </button>
+                  ))}
+                  {formulario.color_categoria && (
+                    <button
+                      type="button"
+                      className="w-12 h-12 rounded-lg border-2 border-border bg-secondary hover:bg-secondary/80 flex items-center justify-center hover:scale-110 transition-all duration-200"
+                      onClick={() => setFormulario({ ...formulario, color_categoria: '' })}
+                      title="Limpiar color"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {formulario.color_categoria && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {obtenerDescripcionColor(formulario.color_categoria)}
+                  </p>
+                )}
               </div>
             </TabsContent>
 
@@ -799,6 +800,70 @@ export default function Pacientes() {
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo de Selección de Color */}
+      <Dialog open={dialogo_color_abierto} onOpenChange={setDialogoColorAbierto}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Seleccionar Color de Categoría</DialogTitle>
+            <DialogDescription>
+              Elige un color del catálogo o crea uno personalizado
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label>Colores del Catálogo</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {catalogos.colores.filter(c => c.color).map((color) => (
+                  <button
+                    key={color.id}
+                    type="button"
+                    className="flex items-center gap-3 p-3 rounded-lg border-2 border-border hover:border-primary hover:bg-secondary/50 transition-all duration-200 hover:scale-105"
+                    onClick={() => seleccionarColorPredefinido(color.color!)}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: color.color }}
+                    />
+                    <div className="text-left flex-1">
+                      <p className="font-medium text-sm">{color.nombre}</p>
+                      {color.descripcion && (
+                        <p className="text-xs text-muted-foreground">{color.descripcion}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t pt-6 space-y-3">
+              <Label>Color Personalizado</Label>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <Input
+                    type="color"
+                    value={color_personalizado}
+                    onChange={(e) => setColorPersonalizado(e.target.value)}
+                    className="h-12 cursor-pointer hover:scale-105 transition-all duration-200"
+                  />
+                </div>
+                <Button
+                  onClick={agregarColorPersonalizado}
+                  className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+                >
+                  <Palette className="h-4 w-4 mr-2" />
+                  Usar Color
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Selecciona cualquier color personalizado para identificar al paciente
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de Ver Detalle del Paciente */}
       <Dialog open={dialogo_ver_abierto} onOpenChange={setDialogoVerAbierto}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -825,10 +890,7 @@ export default function Pacientes() {
                         style={{ backgroundColor: paciente_seleccionado.color_categoria }}
                       />
                       <span className="text-xs text-muted-foreground">
-                        {obtenerColorInfo(paciente_seleccionado.color_categoria).nombre}
-                        {obtenerColorInfo(paciente_seleccionado.color_categoria).descripcion && 
-                          ` • ${obtenerColorInfo(paciente_seleccionado.color_categoria).descripcion}`
-                        }
+                        {obtenerDescripcionColor(paciente_seleccionado.color_categoria)}
                       </span>
                     </div>
                   )}
@@ -846,24 +908,9 @@ export default function Pacientes() {
                   <div className="space-y-3">
                     <div>
                       <Label className="text-muted-foreground">Teléfono</Label>
-                      {paciente_seleccionado.telefono ? (
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-foreground font-medium">
-                            {paciente_seleccionado.telefono}
-                          </p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => abrirWhatsApp(paciente_seleccionado.telefono!)}
-                            className="h-8 hover:bg-green-500/20 hover:text-green-500 transition-all"
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            WhatsApp
-                          </Button>
-                        </div>
-                      ) : (
-                        <p className="text-foreground font-medium">No registrado</p>
-                      )}
+                      <p className="text-foreground font-medium">
+                        {paciente_seleccionado.telefono || 'No registrado'}
+                      </p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Correo</Label>
