@@ -14,14 +14,10 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '@/componentes/ui/card';
-import { FileText, Upload, Download, Trash2, Edit, Loader2, AlertCircle, Eye, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import { FileText, Upload, Download, Trash2, Edit, Loader2, Eye, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 import { archivosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
-import { Badge } from '@/componentes/ui/badge';
 
 interface ArchivoAdjunto {
   id: number;
@@ -38,7 +34,6 @@ interface GestorArchivosProps {
   modo?: 'paciente' | 'plan';
 }
 
-// Tipos de archivos permitidos
 const TIPOS_PERMITIDOS = [
   'image/jpeg',
   'image/jpg',
@@ -49,7 +44,47 @@ const TIPOS_PERMITIDOS = [
 ];
 
 const EXTENSIONES_PERMITIDAS = '.jpg,.jpeg,.png,.gif,.webp,.pdf';
-const TAMANO_MAXIMO = 10 * 1024 * 1024; // 10MB
+const TAMANO_MAXIMO = 10 * 1024 * 1024;
+
+const validarNombreArchivo = (nombre: string): { valido: boolean; error?: string } => {
+  const caracteres_invalidos = /[<>:"/\\|?*\x00-\x1F]/g;
+  
+  if (caracteres_invalidos.test(nombre)) {
+    return {
+      valido: false,
+      error: 'El nombre contiene caracteres no permitidos',
+    };
+  }
+
+  const partes = nombre.split('.');
+  if (partes.length > 2) {
+    return {
+      valido: false,
+      error: 'El nombre no puede contener múltiples extensiones',
+    };
+  }
+
+  if (nombre.length > 100) {
+    return {
+      valido: false,
+      error: 'El nombre es demasiado largo (máximo 100 caracteres)',
+    };
+  }
+
+  return { valido: true };
+};
+
+const obtenerNombreSinExtension = (nombre_completo: string): string => {
+  const ultima_punto = nombre_completo.lastIndexOf('.');
+  if (ultima_punto === -1) return nombre_completo;
+  return nombre_completo.substring(0, ultima_punto);
+};
+
+const obtenerExtension = (nombre_completo: string): string => {
+  const ultima_punto = nombre_completo.lastIndexOf('.');
+  if (ultima_punto === -1) return '';
+  return nombre_completo.substring(ultima_punto);
+};
 
 export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'paciente' }: GestorArchivosProps) {
   const [archivos, setArchivos] = useState<ArchivoAdjunto[]>([]);
@@ -63,13 +98,15 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
   const [rotacion, setRotacion] = useState(0);
 
   const [formulario, setFormulario] = useState({
-    nombre_archivo: '',
+    nombre_sin_extension: '',
+    extension: '',
     descripcion: '',
     archivo: null as File | null,
   });
 
   const [formulario_editar, setFormularioEditar] = useState({
-    nombre_archivo: '',
+    nombre_sin_extension: '',
+    extension: '',
     descripcion: '',
   });
 
@@ -100,7 +137,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
   };
 
   const validarArchivo = (archivo: File): boolean => {
-    // Validar tipo
     if (!TIPOS_PERMITIDOS.includes(archivo.type)) {
       toast({
         title: 'Tipo de archivo no permitido',
@@ -110,7 +146,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
       return false;
     }
 
-    // Validar tamaño
     if (archivo.size > TAMANO_MAXIMO) {
       toast({
         title: 'Archivo demasiado grande',
@@ -127,13 +162,16 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
     const archivo = e.target.files?.[0];
     if (archivo) {
       if (validarArchivo(archivo)) {
+        const nombre_sin_ext = obtenerNombreSinExtension(archivo.name);
+        const ext = obtenerExtension(archivo.name);
+        
         setFormulario({
           ...formulario,
           archivo,
-          nombre_archivo: archivo.name,
+          nombre_sin_extension: nombre_sin_ext,
+          extension: ext,
         });
       } else {
-        // Limpiar el input
         e.target.value = '';
       }
     }
@@ -149,6 +187,18 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
       return;
     }
 
+    const nombre_completo = formulario.nombre_sin_extension.trim() + formulario.extension;
+    const validacion = validarNombreArchivo(nombre_completo);
+    
+    if (!validacion.valido) {
+      toast({
+        title: 'Error',
+        description: validacion.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubiendo(true);
     try {
       const lector = new FileReader();
@@ -156,7 +206,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         const base64 = (lector.result as string).split(',')[1];
         
         await archivosApi.subir({
-          nombre_archivo: formulario.nombre_archivo,
+          nombre_archivo: nombre_completo,
           tipo_mime: formulario.archivo!.type,
           descripcion: formulario.descripcion || undefined,
           contenido_base64: base64,
@@ -171,7 +221,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
 
         setDialogoSubirAbierto(false);
         setFormulario({
-          nombre_archivo: '',
+          nombre_sin_extension: '',
+          extension: '',
           descripcion: '',
           archivo: null,
         });
@@ -200,9 +251,13 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
   };
 
   const abrirDialogoEditar = (archivo: ArchivoAdjunto) => {
+    const nombre_sin_ext = obtenerNombreSinExtension(archivo.nombre_archivo);
+    const ext = obtenerExtension(archivo.nombre_archivo);
+    
     setArchivoSeleccionado(archivo);
     setFormularioEditar({
-      nombre_archivo: archivo.nombre_archivo,
+      nombre_sin_extension: nombre_sin_ext,
+      extension: ext,
       descripcion: archivo.descripcion || '',
     });
     setDialogoEditarAbierto(true);
@@ -211,8 +266,23 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
   const manejarEditar = async () => {
     if (!archivo_seleccionado) return;
 
+    const nombre_completo = formulario_editar.nombre_sin_extension.trim() + formulario_editar.extension;
+    const validacion = validarNombreArchivo(nombre_completo);
+    
+    if (!validacion.valido) {
+      toast({
+        title: 'Error',
+        description: validacion.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
-      await archivosApi.actualizar(archivo_seleccionado.id, formulario_editar);
+      await archivosApi.actualizar(archivo_seleccionado.id, {
+        nombre_archivo: nombre_completo,
+        descripcion: formulario_editar.descripcion,
+      });
       toast({
         title: 'Éxito',
         description: 'Archivo actualizado correctamente',
@@ -404,7 +474,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         </div>
       )}
 
-      {/* Diálogo para subir archivo */}
       <Dialog open={dialogo_subir_abierto} onOpenChange={setDialogoSubirAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -429,26 +498,44 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="nombre">Nombre del archivo *</Label>
-              <Input
-                id="nombre"
-                value={formulario.nombre_archivo}
-                onChange={(e) => setFormulario({ ...formulario, nombre_archivo: e.target.value })}
-                placeholder="radiografia-panoramica.pdf"
-              />
-            </div>
+            {formulario.archivo && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="nombre">Nombre del archivo *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="nombre"
+                      value={formulario.nombre_sin_extension}
+                      onChange={(e) => {
+                        const valor = e.target.value.replace(/[<>:"/\\|?*\x00-\x1F.]/g, '');
+                        setFormulario({ ...formulario, nombre_sin_extension: valor });
+                      }}
+                      placeholder="nombre-del-archivo"
+                      className="flex-1"
+                    />
+                    <Input
+                      value={formulario.extension}
+                      disabled
+                      className="w-20 bg-secondary cursor-not-allowed"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    No uses caracteres especiales. La extensión no se puede modificar.
+                  </p>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="descripcion">Descripción (opcional)</Label>
-              <Textarea
-                id="descripcion"
-                value={formulario.descripcion}
-                onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
-                placeholder="Radiografía panorámica inicial..."
-                rows={3}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="descripcion">Descripción (opcional)</Label>
+                  <Textarea
+                    id="descripcion"
+                    value={formulario.descripcion}
+                    onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
+                    placeholder="Radiografía panorámica inicial..."
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>
@@ -457,7 +544,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
               onClick={() => {
                 setDialogoSubirAbierto(false);
                 setFormulario({
-                  nombre_archivo: '',
+                  nombre_sin_extension: '',
+                  extension: '',
                   descripcion: '',
                   archivo: null,
                 });
@@ -474,7 +562,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo para editar archivo */}
       <Dialog open={dialogo_editar_abierto} onOpenChange={setDialogoEditarAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -487,11 +574,25 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="nombre-editar">Nombre del archivo</Label>
-              <Input
-                id="nombre-editar"
-                value={formulario_editar.nombre_archivo}
-                onChange={(e) => setFormularioEditar({ ...formulario_editar, nombre_archivo: e.target.value })}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="nombre-editar"
+                  value={formulario_editar.nombre_sin_extension}
+                  onChange={(e) => {
+                    const valor = e.target.value.replace(/[<>:"/\\|?*\x00-\x1F.]/g, '');
+                    setFormularioEditar({ ...formulario_editar, nombre_sin_extension: valor });
+                  }}
+                  className="flex-1"
+                />
+                <Input
+                  value={formulario_editar.extension}
+                  disabled
+                  className="w-20 bg-secondary cursor-not-allowed"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                La extensión no se puede modificar
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -519,7 +620,6 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo para ver archivo */}
       <Dialog open={dialogo_ver_abierto} onOpenChange={setDialogoVerAbierto}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
