@@ -126,23 +126,34 @@ export default function Pacientes() {
     setDialogoAbierto(true);
   };
 
-  const abrirDialogoEditar = (paciente: Paciente) => {
-    setFormulario({
-      nombre: paciente.nombre,
-      apellidos: paciente.apellidos,
-      telefono: paciente.telefono || '',
-      correo: paciente.correo || '',
-      direccion: paciente.direccion || '',
-      notas_generales: paciente.notas_generales || '',
-      alergias_ids: Array.isArray(paciente.alergias) ? paciente.alergias : [],
-      enfermedades_ids: Array.isArray(paciente.enfermedades) ? paciente.enfermedades : [],
-      medicamentos_ids: Array.isArray(paciente.medicamentos) ? paciente.medicamentos : [],
-      notas_medicas: paciente.notas_medicas || '',
-      color_categoria: paciente.color_categoria || '',
-    });
-    setPacienteSeleccionado(paciente);
-    setModoEdicion(true);
-    setDialogoAbierto(true);
+  const abrirDialogoEditar = async (paciente: Paciente) => {
+    try {
+      // Cargar datos completos del paciente desde el servidor
+      const datos_completos = await pacientesApi.obtenerPorId(paciente.id);
+      
+      setFormulario({
+        nombre: datos_completos.nombre,
+        apellidos: datos_completos.apellidos,
+        telefono: datos_completos.telefono || '',
+        correo: datos_completos.correo || '',
+        direccion: datos_completos.direccion || '',
+        notas_generales: datos_completos.notas_generales || '',
+        alergias_ids: Array.isArray(datos_completos.alergias) ? datos_completos.alergias : [],
+        enfermedades_ids: Array.isArray(datos_completos.enfermedades) ? datos_completos.enfermedades : [],
+        medicamentos_ids: Array.isArray(datos_completos.medicamentos) ? datos_completos.medicamentos : [],
+        notas_medicas: datos_completos.notas_medicas || '',
+        color_categoria: datos_completos.color_categoria || '',
+      });
+      setPacienteSeleccionado(datos_completos);
+      setModoEdicion(true);
+      setDialogoAbierto(true);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo cargar la información del paciente',
+        variant: 'destructive',
+      });
+    }
   };
 
   const manejarGuardar = async () => {
@@ -513,6 +524,7 @@ export default function Pacientes() {
         </div>
       </div>
 
+      {/* Diálogo de Crear/Editar Paciente */}
       <Dialog open={dialogo_abierto} onOpenChange={setDialogoAbierto}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -788,6 +800,7 @@ export default function Pacientes() {
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo de Selección de Color */}
       <Dialog open={dialogo_color_abierto} onOpenChange={setDialogoColorAbierto}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -850,6 +863,7 @@ export default function Pacientes() {
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo de Ver Detalle del Paciente */}
       <Dialog open={dialogo_ver_abierto} onOpenChange={setDialogoVerAbierto}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -988,6 +1002,7 @@ export default function Pacientes() {
                     )}
                   </div>
                 </TabsContent>
+
                 <TabsContent value="archivos" className="space-y-4 mt-4">
                   <GestorArchivos 
                     paciente_id={paciente_seleccionado.id} 

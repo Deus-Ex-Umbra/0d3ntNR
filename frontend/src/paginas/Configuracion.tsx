@@ -6,7 +6,7 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database } from 'lucide-react';
+import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema } from '@/contextos/tema-contexto';
 import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
@@ -32,6 +32,20 @@ export default function Configuracion() {
   const [formulario_perfil, setFormularioPerfil] = useState({
     nombre: usuario?.nombre || '',
   });
+
+  const [formulario_contrasena, setFormularioContrasena] = useState({
+    contrasena_actual: '',
+    nueva_contrasena: '',
+    confirmar_contrasena: '',
+  });
+
+  const [mostrar_contrasenas, setMostrarContrasenas] = useState({
+    actual: false,
+    nueva: false,
+    confirmar: false,
+  });
+
+  const [cambiando_contrasena, setCambiandoContrasena] = useState(false);
 
   const [nota_diaria, setNotaDiaria] = useState('');
   const [guardando_nota, setGuardandoNota] = useState(false);
@@ -105,6 +119,79 @@ export default function Configuracion() {
       });
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const manejarCambiarContrasena = async () => {
+    // Validaciones
+    if (!formulario_contrasena.contrasena_actual || !formulario_contrasena.nueva_contrasena || !formulario_contrasena.confirmar_contrasena) {
+      toast({
+        title: 'Error',
+        description: 'Todos los campos son obligatorios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formulario_contrasena.nueva_contrasena.length < 6) {
+      toast({
+        title: 'Error',
+        description: 'La nueva contraseña debe tener al menos 6 caracteres',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formulario_contrasena.nueva_contrasena !== formulario_contrasena.confirmar_contrasena) {
+      toast({
+        title: 'Error',
+        description: 'Las contraseñas nuevas no coinciden',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (formulario_contrasena.contrasena_actual === formulario_contrasena.nueva_contrasena) {
+      toast({
+        title: 'Error',
+        description: 'La nueva contraseña debe ser diferente a la actual',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCambiandoContrasena(true);
+    try {
+      await usuariosApi.cambiarContrasena({
+        contrasena_actual: formulario_contrasena.contrasena_actual,
+        nueva_contrasena: formulario_contrasena.nueva_contrasena,
+      });
+      
+      toast({
+        title: 'Éxito',
+        description: 'Contraseña actualizada correctamente',
+      });
+
+      // Limpiar el formulario
+      setFormularioContrasena({
+        contrasena_actual: '',
+        nueva_contrasena: '',
+        confirmar_contrasena: '',
+      });
+      setMostrarContrasenas({
+        actual: false,
+        nueva: false,
+        confirmar: false,
+      });
+    } catch (error: any) {
+      console.error('Error al cambiar contraseña:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'No se pudo cambiar la contraseña',
+        variant: 'destructive',
+      });
+    } finally {
+      setCambiandoContrasena(false);
     }
   };
 
@@ -318,6 +405,144 @@ export default function Configuracion() {
                       <>
                         <Save className="mr-2 h-4 w-4" />
                         Guardar Cambios
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Nueva tarjeta de cambio de contraseña */}
+              <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                      <Lock className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">Cambiar Contraseña</CardTitle>
+                      <CardDescription>Actualiza tu contraseña de acceso</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="contrasena_actual">Contraseña Actual</Label>
+                    <div className="relative">
+                      <Input
+                        id="contrasena_actual"
+                        type={mostrar_contrasenas.actual ? 'text' : 'password'}
+                        value={formulario_contrasena.contrasena_actual}
+                        onChange={(e) => setFormularioContrasena({ ...formulario_contrasena, contrasena_actual: e.target.value })}
+                        placeholder="Ingresa tu contraseña actual"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMostrarContrasenas({ ...mostrar_contrasenas, actual: !mostrar_contrasenas.actual })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {mostrar_contrasenas.actual ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="nueva_contrasena">Nueva Contraseña</Label>
+                    <div className="relative">
+                      <Input
+                        id="nueva_contrasena"
+                        type={mostrar_contrasenas.nueva ? 'text' : 'password'}
+                        value={formulario_contrasena.nueva_contrasena}
+                        onChange={(e) => setFormularioContrasena({ ...formulario_contrasena, nueva_contrasena: e.target.value })}
+                        placeholder="Mínimo 6 caracteres"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMostrarContrasenas({ ...mostrar_contrasenas, nueva: !mostrar_contrasenas.nueva })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {mostrar_contrasenas.nueva ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {formulario_contrasena.nueva_contrasena && formulario_contrasena.nueva_contrasena.length < 6 && (
+                      <p className="text-xs text-destructive">
+                        La contraseña debe tener al menos 6 caracteres
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmar_contrasena">Confirmar Nueva Contraseña</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmar_contrasena"
+                        type={mostrar_contrasenas.confirmar ? 'text' : 'password'}
+                        value={formulario_contrasena.confirmar_contrasena}
+                        onChange={(e) => setFormularioContrasena({ ...formulario_contrasena, confirmar_contrasena: e.target.value })}
+                        placeholder="Repite la nueva contraseña"
+                        className="hover:border-primary/50 focus:border-primary transition-all duration-200 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMostrarContrasenas({ ...mostrar_contrasenas, confirmar: !mostrar_contrasenas.confirmar })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {mostrar_contrasenas.confirmar ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {formulario_contrasena.confirmar_contrasena && 
+                     formulario_contrasena.nueva_contrasena !== formulario_contrasena.confirmar_contrasena && (
+                      <p className="text-xs text-destructive">
+                        Las contraseñas no coinciden
+                      </p>
+                    )}
+                    {formulario_contrasena.confirmar_contrasena && 
+                     formulario_contrasena.nueva_contrasena === formulario_contrasena.confirmar_contrasena && (
+                      <p className="text-xs text-green-500">
+                        ✓ Las contraseñas coinciden
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-secondary/30 border border-border">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">Requisitos de la contraseña:</h4>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li className="flex items-center gap-2">
+                        <span className={formulario_contrasena.nueva_contrasena.length >= 6 ? 'text-green-500' : ''}>
+                          {formulario_contrasena.nueva_contrasena.length >= 6 ? '✓' : '○'}
+                        </span>
+                        Mínimo 6 caracteres
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className={formulario_contrasena.nueva_contrasena && formulario_contrasena.nueva_contrasena !== formulario_contrasena.contrasena_actual ? 'text-green-500' : ''}>
+                          {formulario_contrasena.nueva_contrasena && formulario_contrasena.nueva_contrasena !== formulario_contrasena.contrasena_actual ? '✓' : '○'}
+                        </span>
+                        Diferente a la contraseña actual
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className={formulario_contrasena.confirmar_contrasena && formulario_contrasena.nueva_contrasena === formulario_contrasena.confirmar_contrasena ? 'text-green-500' : ''}>
+                          {formulario_contrasena.confirmar_contrasena && formulario_contrasena.nueva_contrasena === formulario_contrasena.confirmar_contrasena ? '✓' : '○'}
+                        </span>
+                        Las contraseñas deben coincidir
+                      </li>
+                    </ul>
+                  </div>
+
+                  <Button 
+                    onClick={manejarCambiarContrasena} 
+                    disabled={cambiando_contrasena}
+                    className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+                  >
+                    {cambiando_contrasena ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Cambiando...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="mr-2 h-4 w-4" />
+                        Cambiar Contraseña
                       </>
                     )}
                   </Button>

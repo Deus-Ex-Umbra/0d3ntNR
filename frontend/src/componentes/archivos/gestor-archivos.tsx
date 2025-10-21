@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/componentes/ui/card';
-import { FileText, Upload, Download, Trash2, Edit, Loader2, AlertCircle, Eye } from 'lucide-react';
+import { FileText, Upload, Download, Trash2, Edit, Loader2, AlertCircle, Eye, Image as ImageIcon, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 import { archivosApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/componentes/ui/badge';
@@ -38,6 +38,19 @@ interface GestorArchivosProps {
   modo?: 'paciente' | 'plan';
 }
 
+// Tipos de archivos permitidos
+const TIPOS_PERMITIDOS = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+];
+
+const EXTENSIONES_PERMITIDAS = '.jpg,.jpeg,.png,.gif,.webp,.pdf';
+const TAMANO_MAXIMO = 10 * 1024 * 1024; // 10MB
+
 export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'paciente' }: GestorArchivosProps) {
   const [archivos, setArchivos] = useState<ArchivoAdjunto[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -46,6 +59,8 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
   const [dialogo_ver_abierto, setDialogoVerAbierto] = useState(false);
   const [archivo_seleccionado, setArchivoSeleccionado] = useState<ArchivoAdjunto | null>(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [zoom, setZoom] = useState(100);
+  const [rotacion, setRotacion] = useState(0);
 
   const [formulario, setFormulario] = useState({
     nombre_archivo: '',
@@ -84,22 +99,43 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
     }
   };
 
+  const validarArchivo = (archivo: File): boolean => {
+    // Validar tipo
+    if (!TIPOS_PERMITIDOS.includes(archivo.type)) {
+      toast({
+        title: 'Tipo de archivo no permitido',
+        description: 'Solo se permiten imágenes (JPG, PNG, GIF, WEBP) y archivos PDF',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    // Validar tamaño
+    if (archivo.size > TAMANO_MAXIMO) {
+      toast({
+        title: 'Archivo demasiado grande',
+        description: `El archivo no debe superar los ${(TAMANO_MAXIMO / 1024 / 1024).toFixed(0)}MB`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const manejarSeleccionArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0];
     if (archivo) {
-      if (archivo.size > 10 * 1024 * 1024) {
-        toast({
-          title: 'Error',
-          description: 'El archivo no debe superar los 10MB',
-          variant: 'destructive',
+      if (validarArchivo(archivo)) {
+        setFormulario({
+          ...formulario,
+          archivo,
+          nombre_archivo: archivo.name,
         });
-        return;
+      } else {
+        // Limpiar el input
+        e.target.value = '';
       }
-      setFormulario({
-        ...formulario,
-        archivo,
-        nombre_archivo: archivo.name,
-      });
     }
   };
 
@@ -141,6 +177,15 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         });
         cargarArchivos();
       };
+      
+      lector.onerror = () => {
+        toast({
+          title: 'Error',
+          description: 'No se pudo leer el archivo',
+          variant: 'destructive',
+        });
+      };
+      
       lector.readAsDataURL(formulario.archivo);
     } catch (error: any) {
       console.error('Error al subir archivo:', error);
@@ -211,7 +256,17 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
 
   const verArchivo = (archivo: ArchivoAdjunto) => {
     setArchivoSeleccionado(archivo);
+    setZoom(100);
+    setRotacion(0);
     setDialogoVerAbierto(true);
+  };
+
+  const aumentarZoom = () => setZoom(prev => Math.min(prev + 25, 200));
+  const disminuirZoom = () => setZoom(prev => Math.max(prev - 25, 50));
+  const rotar = () => setRotacion(prev => (prev + 90) % 360);
+  const resetearVista = () => {
+    setZoom(100);
+    setRotacion(0);
   };
 
   const formatearFecha = (fecha: Date): string => {
@@ -224,12 +279,21 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
     });
   };
 
+  const formatearTamano = (base64: string): string => {
+    const bytes = (base64.length * 3) / 4;
+    if (bytes < 1024) return `${bytes.toFixed(0)} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
+
   const obtenerIconoTipo = (tipo_mime: string) => {
     if (tipo_mime.startsWith('image/')) return '🖼️';
-    if (tipo_mime.startsWith('application/pdf')) return '📄';
-    if (tipo_mime.startsWith('application/vnd')) return '📊';
+    if (tipo_mime === 'application/pdf') return '📄';
     return '📎';
   };
+
+  const esImagen = (tipo_mime: string) => tipo_mime.startsWith('image/');
+  const esPdf = (tipo_mime: string) => tipo_mime === 'application/pdf';
 
   return (
     <div className="space-y-4">
@@ -240,7 +304,9 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
           </div>
           <div>
             <h3 className="text-lg font-semibold">Archivos Adjuntos</h3>
-            <p className="text-sm text-muted-foreground">{archivos.length} archivos</p>
+            <p className="text-sm text-muted-foreground">
+              {archivos.length} archivo{archivos.length !== 1 ? 's' : ''} • PDF e imágenes únicamente
+            </p>
           </div>
         </div>
         <Button
@@ -261,8 +327,11 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         <Card className="border-2 border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-8">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">
+            <p className="text-muted-foreground text-center mb-2">
               No hay archivos adjuntos
+            </p>
+            <p className="text-xs text-muted-foreground text-center">
+              Solo se permiten archivos PDF e imágenes (máx. 10MB)
             </p>
           </CardContent>
         </Card>
@@ -281,19 +350,21 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
                           {archivo.descripcion}
                         </p>
                       )}
-                      <p className="text-xs text-muted-foreground">
-                        {formatearFecha(archivo.fecha_subida)}
-                      </p>
+                      <div className="flex gap-2 items-center text-xs text-muted-foreground mt-1">
+                        <span>{formatearFecha(archivo.fecha_subida)}</span>
+                        <span>•</span>
+                        <span>{formatearTamano(archivo.contenido_base64)}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {archivo.tipo_mime.startsWith('image/') && (
+                    {(esImagen(archivo.tipo_mime) || esPdf(archivo.tipo_mime)) && (
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => verArchivo(archivo)}
-                        className="hover:bg-primary/20 hover:text-primary"
-                        title="Ver"
+                        className="hover:bg-primary/20 hover:text-primary transition-all"
+                        title="Ver archivo"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -302,7 +373,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
                       variant="ghost"
                       size="icon"
                       onClick={() => manejarDescargar(archivo)}
-                      className="hover:bg-blue-500/20 hover:text-blue-500"
+                      className="hover:bg-blue-500/20 hover:text-blue-500 transition-all"
                       title="Descargar"
                     >
                       <Download className="h-4 w-4" />
@@ -311,7 +382,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
                       variant="ghost"
                       size="icon"
                       onClick={() => abrirDialogoEditar(archivo)}
-                      className="hover:bg-yellow-500/20 hover:text-yellow-500"
+                      className="hover:bg-yellow-500/20 hover:text-yellow-500 transition-all"
                       title="Editar"
                     >
                       <Edit className="h-4 w-4" />
@@ -320,7 +391,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
                       variant="ghost"
                       size="icon"
                       onClick={() => manejarEliminar(archivo.id, archivo.nombre_archivo)}
-                      className="hover:bg-destructive/20 hover:text-destructive"
+                      className="hover:bg-destructive/20 hover:text-destructive transition-all"
                       title="Eliminar"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -333,6 +404,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         </div>
       )}
 
+      {/* Diálogo para subir archivo */}
       <Dialog open={dialogo_subir_abierto} onOpenChange={setDialogoSubirAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -348,11 +420,12 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
               <Input
                 id="archivo"
                 type="file"
+                accept={EXTENSIONES_PERMITIDAS}
                 onChange={manejarSeleccionArchivo}
                 className="cursor-pointer"
               />
               <p className="text-xs text-muted-foreground">
-                Tamaño máximo: 10MB
+                Tipos permitidos: PDF, JPG, PNG, GIF, WEBP • Tamaño máximo: 10MB
               </p>
             </div>
 
@@ -362,7 +435,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
                 id="nombre"
                 value={formulario.nombre_archivo}
                 onChange={(e) => setFormulario({ ...formulario, nombre_archivo: e.target.value })}
-                placeholder="documento.pdf"
+                placeholder="radiografia-panoramica.pdf"
               />
             </div>
 
@@ -372,7 +445,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
                 id="descripcion"
                 value={formulario.descripcion}
                 onChange={(e) => setFormulario({ ...formulario, descripcion: e.target.value })}
-                placeholder="Radiografía panorámica..."
+                placeholder="Radiografía panorámica inicial..."
                 rows={3}
               />
             </div>
@@ -381,12 +454,19 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDialogoSubirAbierto(false)}
+              onClick={() => {
+                setDialogoSubirAbierto(false);
+                setFormulario({
+                  nombre_archivo: '',
+                  descripcion: '',
+                  archivo: null,
+                });
+              }}
               disabled={subiendo}
             >
               Cancelar
             </Button>
-            <Button onClick={manejarSubir} disabled={subiendo}>
+            <Button onClick={manejarSubir} disabled={subiendo || !formulario.archivo}>
               {subiendo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Subir
             </Button>
@@ -394,6 +474,7 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo para editar archivo */}
       <Dialog open={dialogo_editar_abierto} onOpenChange={setDialogoEditarAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -438,18 +519,101 @@ export function GestorArchivos({ paciente_id, plan_tratamiento_id, modo = 'pacie
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo para ver archivo */}
       <Dialog open={dialogo_ver_abierto} onOpenChange={setDialogoVerAbierto}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>{archivo_seleccionado?.nombre_archivo}</DialogTitle>
+            <div className="flex items-center justify-between pr-8">
+              <DialogTitle className="truncate pr-4">
+                {archivo_seleccionado?.nombre_archivo}
+              </DialogTitle>
+              <div className="flex gap-2 flex-shrink-0">
+                {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={disminuirZoom}
+                      disabled={zoom <= 50}
+                      title="Alejar"
+                    >
+                      <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={aumentarZoom}
+                      disabled={zoom >= 200}
+                      title="Acercar"
+                    >
+                      <ZoomIn className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={rotar}
+                      title="Rotar"
+                    >
+                      <RotateCw className="h-4 w-4" />
+                    </Button>
+                    {(zoom !== 100 || rotacion !== 0) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resetearVista}
+                      >
+                        Resetear
+                      </Button>
+                    )}
+                  </>
+                )}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => archivo_seleccionado && manejarDescargar(archivo_seleccionado)}
+                  title="Descargar"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {archivo_seleccionado?.descripcion && (
+              <p className="text-sm text-muted-foreground mt-2">
+                {archivo_seleccionado.descripcion}
+              </p>
+            )}
           </DialogHeader>
-          {archivo_seleccionado && archivo_seleccionado.tipo_mime.startsWith('image/') && (
-            <div className="flex items-center justify-center p-4">
-              <img
-                src={`data:${archivo_seleccionado.tipo_mime};base64,${archivo_seleccionado.contenido_base64}`}
-                alt={archivo_seleccionado.nombre_archivo}
-                className="max-w-full max-h-[70vh] object-contain"
-              />
+
+          <div className="flex-1 overflow-auto bg-secondary/10 rounded-lg p-4 min-h-[400px] max-h-[600px]">
+            {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && (
+              <div className="flex items-center justify-center h-full">
+                <img
+                  src={`data:${archivo_seleccionado.tipo_mime};base64,${archivo_seleccionado.contenido_base64}`}
+                  alt={archivo_seleccionado.nombre_archivo}
+                  className="max-w-full h-auto object-contain transition-all duration-300"
+                  style={{
+                    transform: `scale(${zoom / 100}) rotate(${rotacion}deg)`,
+                    transformOrigin: 'center',
+                  }}
+                />
+              </div>
+            )}
+
+            {archivo_seleccionado && esPdf(archivo_seleccionado.tipo_mime) && (
+              <div className="h-full">
+                <iframe
+                  src={`data:${archivo_seleccionado.tipo_mime};base64,${archivo_seleccionado.contenido_base64}`}
+                  className="w-full h-full min-h-[500px] rounded border-0"
+                  title={archivo_seleccionado.nombre_archivo}
+                />
+              </div>
+            )}
+          </div>
+
+          {archivo_seleccionado && esImagen(archivo_seleccionado.tipo_mime) && (
+            <div className="text-center text-sm text-muted-foreground pt-2">
+              Zoom: {zoom}%
+              {rotacion > 0 && ` • Rotación: ${rotacion}°`}
             </div>
           )}
         </DialogContent>

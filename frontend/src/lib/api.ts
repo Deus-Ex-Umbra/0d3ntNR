@@ -101,6 +101,24 @@ export const pacientesApi = {
   },
 };
 
+export const odontogramaApi = {
+  crear: async (paciente_id: number, datos: {
+    datos: any;
+    etapa_dental?: 'Infantil' | 'Mixta' | 'Adulto';
+  }) => {
+    const respuesta = await api.post(`/pacientes/${paciente_id}/odontograma`, datos);
+    return respuesta.data;
+  },
+  obtenerHistorial: async (paciente_id: number) => {
+    const respuesta = await api.get(`/pacientes/${paciente_id}/odontograma`);
+    return respuesta.data;
+  },
+  obtenerUltimo: async (paciente_id: number) => {
+    const respuesta = await api.get(`/pacientes/${paciente_id}/odontograma/ultimo`);
+    return respuesta.data;
+  },
+};
+
 export const tratamientosApi = {
   crear: async (datos: { nombre: string; numero_citas: number; costo_total: number }) => {
     const respuesta = await api.post('/tratamientos', datos);
@@ -269,6 +287,22 @@ export const catalogoApi = {
   },
   eliminarColor: async (id: number) => {
     const respuesta = await api.delete(`/catalogo/colores/${id}`);
+    return respuesta.data;
+  },
+  obtenerSimbologias: async () => {
+    const respuesta = await api.get('/catalogo/simbologia');
+    return respuesta.data;
+  },
+  crearSimbologia: async (datos: { nombre: string; descripcion?: string; imagen_base64: string }) => {
+    const respuesta = await api.post('/catalogo/simbologia', datos);
+    return respuesta.data;
+  },
+  actualizarSimbologia: async (id: number, datos: { nombre?: string; descripcion?: string; imagen_base64?: string }) => {
+    const respuesta = await api.put(`/catalogo/simbologia/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminarSimbologia: async (id: number) => {
+    const respuesta = await api.delete(`/catalogo/simbologia/${id}`);
     return respuesta.data;
   },
 };

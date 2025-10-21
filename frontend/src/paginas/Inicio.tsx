@@ -23,6 +23,12 @@ interface Estadisticas {
   }>;
 }
 
+interface MensajeGuardado {
+  mensaje: string;
+  fecha: string;
+  usuario_id: number;
+}
+
 export default function Inicio() {
   const { usuario } = useAutenticacion();
   const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null);
@@ -34,6 +40,58 @@ export default function Inicio() {
     cargarEstadisticas();
     cargarFraseMotivacional();
   }, []);
+
+  const obtenerFechaHoy = (): string => {
+    const hoy = new Date();
+    return hoy.toISOString().split('T')[0];
+  };
+
+  const obtenerMensajeGuardado = (): MensajeGuardado | null => {
+    try {
+      const mensaje_guardado = localStorage.getItem('mensaje_dia');
+      if (mensaje_guardado) {
+        return JSON.parse(mensaje_guardado) as MensajeGuardado;
+      }
+    } catch (error) {
+      console.error('Error al leer mensaje guardado:', error);
+    }
+    return null;
+  };
+
+  const guardarMensaje = (mensaje: string) => {
+    if (!usuario?.id) return;
+    
+    const datos: MensajeGuardado = {
+      mensaje,
+      fecha: obtenerFechaHoy(),
+      usuario_id: usuario.id,
+    };
+    
+    try {
+      localStorage.setItem('mensaje_dia', JSON.stringify(datos));
+    } catch (error) {
+      console.error('Error al guardar mensaje:', error);
+    }
+  };
+
+  const necesitaNuevoMensaje = (): boolean => {
+    const mensaje_guardado = obtenerMensajeGuardado();
+    
+    if (!mensaje_guardado) {
+      return true;
+    }
+    
+    if (usuario?.id && mensaje_guardado.usuario_id !== usuario.id) {
+      return true;
+    }
+    
+    const fecha_hoy = obtenerFechaHoy();
+    if (mensaje_guardado.fecha !== fecha_hoy) {
+      return true;
+    }
+    
+    return false;
+  };
 
   const cargarEstadisticas = async () => {
     setCargando(true);
@@ -48,10 +106,18 @@ export default function Inicio() {
   };
 
   const cargarFraseMotivacional = async () => {
+    const mensaje_guardado = obtenerMensajeGuardado();
+    
+    if (!necesitaNuevoMensaje() && mensaje_guardado) {
+      setFraseMotivacional(mensaje_guardado.mensaje);
+      return;
+    }
+    
     setCargandoFrase(true);
     try {
       const frase = await asistenteApi.obtenerFraseMotivacional(7);
       setFraseMotivacional(frase);
+      guardarMensaje(frase);
     } catch (error) {
       console.error('Error al cargar frase:', error);
       setFraseMotivacional('Bienvenido, ¿qué haremos hoy?');
