@@ -84,4 +84,10 @@ export class PlanesTratamientoServicio {
     plan.total_abonado = Number(plan.total_abonado) + Number(monto);
     return this.plan_repositorio.save(plan);
   }
+
+  async descontarAbono(plan_id: number, monto: number): Promise<PlanTratamiento> {
+    const plan = await this.encontrarPlanPorId(plan_id);
+    plan.total_abonado = Math.max(0, Number(plan.total_abonado) - Number(monto));
+    return this.plan_repositorio.save(plan);
+  }
 }

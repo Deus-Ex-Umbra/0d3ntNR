@@ -10,6 +10,7 @@ import {
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
+import { Textarea } from "@/componentes/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +46,7 @@ import {
   User,
   CheckCircle,
 } from "lucide-react";
-import { tratamientosApi, planesTratamientoApi, pacientesApi } from "@/lib/api";
+import { tratamientosApi, planesTratamientoApi, pacientesApi, agendaApi, finanzasApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/componentes/ui/toaster";
 import { Badge } from "@/componentes/ui/badge";
@@ -82,6 +83,8 @@ interface PlanTratamiento {
     id: number;
     fecha: Date;
     descripcion: string;
+    estado_pago: string;
+    monto_esperado: number;
   }>;
   pagos: Array<{
     id: number;
@@ -99,11 +102,15 @@ export default function Tratamientos() {
   const [dialogo_plantilla_abierto, setDialogoPlantillaAbierto] = useState(false);
   const [dialogo_asignar_abierto, setDialogoAsignarAbierto] = useState(false);
   const [dialogo_detalle_plan_abierto, setDialogoDetallePlanAbierto] = useState(false);
+  const [dialogo_cita_abierto, setDialogoCitaAbierto] = useState(false);
   const [modo_edicion, setModoEdicion] = useState(false);
+  const [modo_edicion_cita, setModoEdicionCita] = useState(false);
   const [tratamiento_seleccionado, setTratamientoSeleccionado] = useState<Tratamiento | null>(null);
   const [plan_seleccionado, setPlanSeleccionado] = useState<PlanTratamiento | null>(null);
+  const [cita_seleccionada, setCitaSeleccionada] = useState<any>(null);
   const [guardando, setGuardando] = useState(false);
   const [paciente_filtro, setPacienteFiltro] = useState<string>("todos");
+  const [estado_pago_anterior_cita, setEstadoPagoAnteriorCita] = useState<string>('');
 
   const [formulario_plantilla, setFormularioPlantilla] = useState({
     nombre: "",
@@ -116,6 +123,19 @@ export default function Tratamientos() {
     tratamiento_id: "",
     fecha_inicio: "",
   });
+
+  const [formulario_cita, setFormularioCita] = useState({
+    fecha: "",
+    descripcion: "",
+    estado_pago: "pendiente",
+    monto_esperado: "",
+  });
+
+  const estados_pago = [
+    { valor: 'pendiente', etiqueta: 'Pendiente', color: 'bg-yellow-500' },
+    { valor: 'pagado', etiqueta: 'Pagado', color: 'bg-green-500' },
+    { valor: 'cancelado', etiqueta: 'Cancelado', color: 'bg-red-500' },
+  ];
 
   useEffect(() => {
     cargarDatos();
@@ -323,6 +343,152 @@ export default function Tratamientos() {
     setDialogoDetallePlanAbierto(true);
   };
 
+  const abrirDialogoNuevaCita = () => {
+    setFormularioCita({
+      fecha: new Date().toISOString().slice(0, 16),
+      descripcion: "",
+      estado_pago: "pendiente",
+      monto_esperado: "",
+    });
+    setModoEdicionCita(false);
+    setEstadoPagoAnteriorCita('');
+    setDialogoCitaAbierto(true);
+  };
+
+  const abrirDialogoEditarCita = (cita: any) => {
+    setFormularioCita({
+      fecha: new Date(cita.fecha).toISOString().slice(0, 16),
+      descripcion: cita.descripcion,
+      estado_pago: cita.estado_pago || 'pendiente',
+      monto_esperado: cita.monto_esperado?.toString() || "",
+    });
+    setCitaSeleccionada(cita);
+    setModoEdicionCita(true);
+    setEstadoPagoAnteriorCita(cita.estado_pago || 'pendiente');
+    setDialogoCitaAbierto(true);
+  };
+
+  const manejarCambioEstadoPagoCita = async (cita_id: number, nuevo_estado: string, monto: number) => {
+    try {
+      if (nuevo_estado === 'pagado' && monto > 0) {
+        await finanzasApi.registrarPago({
+          cita_id,
+          plan_tratamiento_id: plan_seleccionado?.id,
+          fecha: new Date(),
+          monto,
+          concepto: 'Pago de cita del plan de tratamiento',
+        });
+        toast({
+          title: 'Pago registrado',
+          description: `Se ha registrado el ingreso de ${formatearMoneda(monto)}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error al manejar pago:', error);
+      throw error;
+    }
+  };
+
+  const manejarGuardarCita = async () => {
+    if (!plan_seleccionado || !formulario_cita.fecha || !formulario_cita.descripcion) {
+      toast({
+        title: "Error",
+        description: "Fecha y descripción son obligatorios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const datos: any = {
+        paciente_id: plan_seleccionado.paciente.id,
+        plan_tratamiento_id: plan_seleccionado.id,
+        fecha: new Date(formulario_cita.fecha),
+        descripcion: formulario_cita.descripcion,
+        estado_pago: formulario_cita.estado_pago,
+        monto_esperado: formulario_cita.monto_esperado ? parseFloat(formulario_cita.monto_esperado) : 0,
+      };
+
+      if (modo_edicion_cita && cita_seleccionada) {
+        await agendaApi.actualizar(cita_seleccionada.id, datos);
+        
+        if (estado_pago_anterior_cita !== formulario_cita.estado_pago) {
+          await manejarCambioEstadoPagoCita(
+            cita_seleccionada.id,
+            formulario_cita.estado_pago,
+            parseFloat(formulario_cita.monto_esperado) || 0
+          );
+        }
+        
+        toast({
+          title: "Éxito",
+          description: "Cita actualizada correctamente",
+        });
+      } else {
+        const cita_creada = await agendaApi.crear(datos);
+        
+        if (formulario_cita.estado_pago === 'pagado' && parseFloat(formulario_cita.monto_esperado) > 0) {
+          await manejarCambioEstadoPagoCita(
+            cita_creada.id,
+            formulario_cita.estado_pago,
+            parseFloat(formulario_cita.monto_esperado)
+          );
+        }
+        
+        toast({
+          title: "Éxito",
+          description: "Cita agregada al plan correctamente",
+        });
+      }
+      
+      setDialogoCitaAbierto(false);
+      await cargarPlanes();
+      
+      const plan_actualizado = planes.find(p => p.id === plan_seleccionado.id);
+      if (plan_actualizado) {
+        setPlanSeleccionado(plan_actualizado);
+      }
+    } catch (error: any) {
+      console.error("Error al guardar cita:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "No se pudo guardar la cita",
+        variant: "destructive",
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const manejarEliminarCita = async (cita_id: number) => {
+    if (!confirm("¿Estás seguro de eliminar esta cita del plan?")) return;
+
+    try {
+      await agendaApi.eliminar(cita_id);
+      toast({
+        title: "Éxito",
+        description: "Cita eliminada correctamente",
+      });
+      
+      await cargarPlanes();
+      
+      if (plan_seleccionado) {
+        const plan_actualizado = planes.find(p => p.id === plan_seleccionado.id);
+        if (plan_actualizado) {
+          setPlanSeleccionado(plan_actualizado);
+        }
+      }
+    } catch (error) {
+      console.error("Error al eliminar cita:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la cita",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatearMoneda = (monto: number): string => {
     return new Intl.NumberFormat("es-BO", {
       style: "currency",
@@ -338,9 +504,29 @@ export default function Tratamientos() {
     });
   };
 
+  const formatearFechaHora = (fecha: Date): string => {
+    return new Date(fecha).toLocaleString("es-BO", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const calcularProgreso = (plan: PlanTratamiento): number => {
     if (plan.costo_total === 0) return 0;
     return (plan.total_abonado / plan.costo_total) * 100;
+  };
+
+  const obtenerColorEstado = (estado: string): string => {
+    const estado_encontrado = estados_pago.find(e => e.valor === estado);
+    return estado_encontrado?.color || 'bg-gray-500';
+  };
+
+  const obtenerEtiquetaEstado = (estado: string): string => {
+    const estado_encontrado = estados_pago.find(e => e.valor === estado);
+    return estado_encontrado?.etiqueta || estado;
   };
 
   const opciones_pacientes: OpcionCombobox[] = [
@@ -354,6 +540,11 @@ export default function Tratamientos() {
   const opciones_pacientes_asignar: OpcionCombobox[] = pacientes.map(p => ({
     valor: p.id.toString(),
     etiqueta: `${p.nombre} ${p.apellidos}`
+  }));
+
+  const opciones_estados: OpcionCombobox[] = estados_pago.map(e => ({
+    valor: e.valor,
+    etiqueta: e.etiqueta
   }));
 
   const planes_filtrados = paciente_filtro === 'todos' 
@@ -815,8 +1006,7 @@ export default function Tratamientos() {
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    {tratamiento_seleccionado.numero_citas} citas programadas (1
-                    por semana)
+                    {tratamiento_seleccionado.numero_citas} citas sugeridas
                   </p>
                   <p className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
@@ -853,9 +1043,12 @@ export default function Tratamientos() {
         open={dialogo_detalle_plan_abierto}
         onOpenChange={setDialogoDetallePlanAbierto}
       >
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalle del Plan de Tratamiento</DialogTitle>
+            <DialogTitle>Gestión del Plan de Tratamiento</DialogTitle>
+            <DialogDescription>
+              Administra las citas y pagos del plan
+            </DialogDescription>
           </DialogHeader>
 
           {plan_seleccionado && (
@@ -923,6 +1116,17 @@ export default function Tratamientos() {
                 </TabsList>
 
                 <TabsContent value="citas" className="space-y-3 mt-4">
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={abrirDialogoNuevaCita}
+                      className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Agregar Cita
+                    </Button>
+                  </div>
+
                   {plan_seleccionado.citas.length === 0 ? (
                     <p className="text-center text-muted-foreground py-8">
                       No hay citas programadas
@@ -931,16 +1135,49 @@ export default function Tratamientos() {
                     plan_seleccionado.citas.map((cita) => (
                       <div
                         key={cita.id}
-                        className="p-3 rounded-lg bg-secondary/30 border border-border"
+                        className="p-4 rounded-lg bg-secondary/30 border border-border hover:bg-secondary/50 transition-all duration-200"
                       >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{cita.descripcion}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatearFecha(cita.fecha)}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <p className="font-medium text-foreground">
+                                {formatearFechaHora(cita.fecha)}
+                              </p>
+                              <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white`}>
+                                {obtenerEtiquetaEstado(cita.estado_pago)}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground ml-7">
+                              {cita.descripcion}
                             </p>
+                            {cita.monto_esperado > 0 && (
+                              <p className="text-xs text-muted-foreground ml-7 mt-1 flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" />
+                                Monto: {formatearMoneda(cita.monto_esperado)}
+                              </p>
+                            )}
                           </div>
-                          <Calendar className="h-5 w-5 text-muted-foreground" />
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => abrirDialogoEditarCita(cita)}
+                              className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                              title="Editar"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => manejarEliminarCita(cita.id)}
+                              className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -976,6 +1213,105 @@ export default function Tratamientos() {
               </Tabs>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_cita_abierto} onOpenChange={setDialogoCitaAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {modo_edicion_cita ? 'Editar Cita' : 'Agregar Cita al Plan'}
+            </DialogTitle>
+            <DialogDescription>
+              {modo_edicion_cita 
+                ? 'Modifica los detalles de la cita' 
+                : 'Programa una nueva cita para este plan de tratamiento'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="fecha_cita">Fecha y Hora *</Label>
+              <Input
+                id="fecha_cita"
+                type="datetime-local"
+                value={formulario_cita.fecha}
+                onChange={(e) => setFormularioCita({ ...formulario_cita, fecha: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descripcion_cita">Descripción *</Label>
+              <Textarea
+                id="descripcion_cita"
+                value={formulario_cita.descripcion}
+                onChange={(e) => setFormularioCita({ ...formulario_cita, descripcion: e.target.value })}
+                placeholder="Ej: Consulta de seguimiento, Aplicación de tratamiento..."
+                rows={3}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="estado_pago_cita">Estado de Pago</Label>
+                <Combobox
+                  opciones={opciones_estados}
+                  valor={formulario_cita.estado_pago}
+                  onChange={(valor) => setFormularioCita({ ...formulario_cita, estado_pago: valor })}
+                  placeholder="Estado"
+                />
+                {modo_edicion_cita && estado_pago_anterior_cita !== formulario_cita.estado_pago && (
+                  <p className="text-xs text-amber-500">
+                    ⚠️ El cambio de estado afectará el registro de pagos
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="monto_cita">Monto (Bs.)</Label>
+                <Input
+                  id="monto_cita"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formulario_cita.monto_esperado}
+                  onChange={(e) => setFormularioCita({ ...formulario_cita, monto_esperado: e.target.value })}
+                  placeholder="0.00"
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                />
+              </div>
+            </div>
+
+            {formulario_cita.estado_pago === 'pagado' && parseFloat(formulario_cita.monto_esperado) > 0 && (
+              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-2">
+                  <DollarSign className="h-3 w-3" />
+                  Se registrará automáticamente un ingreso de {formatearMoneda(parseFloat(formulario_cita.monto_esperado))} vinculado a este plan
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoCitaAbierto(false)}
+              disabled={guardando}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={manejarGuardarCita} 
+              disabled={guardando}
+              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {modo_edicion_cita ? 'Actualizar' : 'Agregar'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

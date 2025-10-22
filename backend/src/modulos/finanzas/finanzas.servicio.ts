@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Egreso } from './entidades/egreso.entidad';
@@ -6,7 +6,6 @@ import { Pago } from './entidades/pago.entidad';
 import { RegistrarEgresoDto } from './dto/registrar-egreso.dto';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { PlanesTratamientoServicio } from '../tratamientos/planes-tratamiento.servicio';
-import { AgendaServicio } from '../agenda/agenda.servicio';
 
 @Injectable()
 export class FinanzasServicio {
@@ -15,8 +14,8 @@ export class FinanzasServicio {
     private readonly egreso_repositorio: Repository<Egreso>,
     @InjectRepository(Pago)
     private readonly pago_repositorio: Repository<Pago>,
+    @Inject(forwardRef(() => PlanesTratamientoServicio))
     private readonly planes_servicio: PlanesTratamientoServicio,
-    private readonly agenda_servicio: AgendaServicio,
   ) {}
 
   async registrarEgreso(registrar_egreso_dto: RegistrarEgresoDto): Promise<Egreso> {
@@ -42,11 +41,28 @@ export class FinanzasServicio {
       await this.planes_servicio.registrarAbono(registrar_pago_dto.plan_tratamiento_id, registrar_pago_dto.monto);
     }
 
-    if (registrar_pago_dto.cita_id) {
-      await this.agenda_servicio.actualizar(registrar_pago_dto.cita_id, { estado_pago: 'pagado' });
+    return this.pago_repositorio.save(nuevo_pago);
+  }
+
+  async eliminarPagosPorCita(cita_id: number): Promise<{ pagos_eliminados: number; monto_total: number }> {
+    const pagos = await this.pago_repositorio.find({
+      where: { cita: { id: cita_id } },
+      relations: ['plan_tratamiento'],
+    });
+
+    const monto_total = pagos.reduce((sum, pago) => sum + Number(pago.monto), 0);
+
+    for (const pago of pagos) {
+      if (pago.plan_tratamiento) {
+        await this.planes_servicio.descontarAbono(pago.plan_tratamiento.id, Number(pago.monto));
+      }
+      await this.pago_repositorio.remove(pago);
     }
 
-    return this.pago_repositorio.save(nuevo_pago);
+    return {
+      pagos_eliminados: pagos.length,
+      monto_total,
+    };
   }
 
   async generarReporte(fecha_inicio_str?: string, fecha_fin_str?: string) {

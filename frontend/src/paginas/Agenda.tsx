@@ -24,7 +24,10 @@ interface Cita {
     nombre: string;
     apellidos: string;
     color_categoria?: string;
-  };
+  } | null;
+  plan_tratamiento?: {
+    id: number;
+  } | null;
 }
 
 interface Paciente {
@@ -206,10 +209,34 @@ export default function Agenda() {
 
       if (modo_edicion && cita_seleccionada) {
         await agendaApi.actualizar(cita_seleccionada.id, datos);
-        toast({
-          title: 'Éxito',
-          description: 'Cita actualizada correctamente',
-        });
+        
+        const estado_cambio = cita_seleccionada.estado_pago !== formulario.estado_pago;
+        const cambio_a_pagado = cita_seleccionada.estado_pago !== 'pagado' && formulario.estado_pago === 'pagado';
+        const cambio_desde_pagado = cita_seleccionada.estado_pago === 'pagado' && formulario.estado_pago !== 'pagado';
+        
+        if (estado_cambio && cita_seleccionada.plan_tratamiento) {
+          if (cambio_a_pagado) {
+            toast({
+              title: 'Éxito',
+              description: 'Cita actualizada y pago registrado automáticamente',
+            });
+          } else if (cambio_desde_pagado) {
+            toast({
+              title: 'Éxito',
+              description: 'Cita actualizada y pago revertido automáticamente',
+            });
+          } else {
+            toast({
+              title: 'Éxito',
+              description: 'Cita actualizada correctamente',
+            });
+          }
+        } else {
+          toast({
+            title: 'Éxito',
+            description: 'Cita actualizada correctamente',
+          });
+        }
       } else {
         await agendaApi.crear(datos);
         toast({
