@@ -6,13 +6,16 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff } from 'lucide-react';
+import { ScrollArea } from '@/componentes/ui/scroll-area';
+import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema } from '@/contextos/tema-contexto';
 import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { GestionCatalogo } from '@/componentes/catalogo/gestion-catalogo';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface ItemCatalogo {
   id: number;
@@ -22,12 +25,21 @@ interface ItemCatalogo {
   activo: boolean;
 }
 
+interface Nota {
+  id: number;
+  contenido: string;
+  fecha_creacion: string;
+}
+
 export default function Configuracion() {
   const { usuario, actualizarUsuario } = useAutenticacion();
   const { tema, cambiarTema, tema_efectivo } = useTema();
   const [guardando, setGuardando] = useState(false);
   const [cargando_frase, setCargandoFrase] = useState(false);
   const [frase_motivacional, setFraseMotivacional] = useState('');
+  const [notas_anteriores, setNotasAnteriores] = useState<Nota[]>([]);
+  const [cargando_notas, setCargandoNotas] = useState(true);
+  const [dias_mostrar, setDiasMostrar] = useState(30);
   
   const [formulario_perfil, setFormularioPerfil] = useState({
     nombre: usuario?.nombre || '',
@@ -66,6 +78,27 @@ export default function Configuracion() {
   useEffect(() => {
     cargarCatalogos();
   }, []);
+
+  useEffect(() => {
+    cargarNotasAnteriores();
+  }, [dias_mostrar]);
+
+  const cargarNotasAnteriores = async () => {
+    setCargandoNotas(true);
+    try {
+      const notas = await notasApi.obtenerUltimas(dias_mostrar);
+      setNotasAnteriores(notas);
+    } catch (error) {
+      console.error('Error al cargar notas:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar las notas anteriores',
+        variant: 'destructive',
+      });
+    } finally {
+      setCargandoNotas(false);
+    }
+  };
 
   const cargarCatalogos = async () => {
     setCargandoCatalogos(true);
@@ -123,7 +156,6 @@ export default function Configuracion() {
   };
 
   const manejarCambiarContrasena = async () => {
-    // Validaciones
     if (!formulario_contrasena.contrasena_actual || !formulario_contrasena.nueva_contrasena || !formulario_contrasena.confirmar_contrasena) {
       toast({
         title: 'Error',
@@ -172,7 +204,6 @@ export default function Configuracion() {
         description: 'Contraseña actualizada correctamente',
       });
 
-      // Limpiar el formulario
       setFormularioContrasena({
         contrasena_actual: '',
         nueva_contrasena: '',
@@ -252,6 +283,7 @@ export default function Configuracion() {
         description: 'Nota guardada correctamente',
       });
       setNotaDiaria('');
+      await cargarNotasAnteriores();
     } catch (error: any) {
       console.error('Error al guardar nota:', error);
       toast({
@@ -282,6 +314,15 @@ export default function Configuracion() {
       });
     } finally {
       setCargandoFrase(false);
+    }
+  };
+
+  const formatearFecha = (fecha_string: string): string => {
+    try {
+      const fecha = new Date(fecha_string);
+      return format(fecha, "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es });
+    } catch (error) {
+      return fecha_string;
     }
   };
 
@@ -411,7 +452,6 @@ export default function Configuracion() {
                 </CardContent>
               </Card>
 
-              {/* Nueva tarjeta de cambio de contraseña */}
               <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -558,7 +598,7 @@ export default function Configuracion() {
                       <Bell className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-xl">Notas Diarias</CardTitle>
+                      <CardTitle className="text-xl">Nueva Nota</CardTitle>
                       <CardDescription>Registra tus pensamientos y reflexiones del día</CardDescription>
                     </div>
                   </div>
@@ -633,6 +673,88 @@ export default function Configuracion() {
                       </div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl">Notas Anteriores</CardTitle>
+                        <CardDescription>
+                          Visualiza tus notas de los últimos {dias_mostrar} días
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="dias-mostrar" className="text-sm text-muted-foreground">
+                        Días:
+                      </Label>
+                      <Input
+                        id="dias-mostrar"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={dias_mostrar}
+                        onChange={(e) => setDiasMostrar(Math.max(1, Math.min(365, parseInt(e.target.value) || 30)))}
+                        className="w-20 h-9"
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {cargando_notas ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center space-y-4">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                        <p className="text-muted-foreground">Cargando notas...</p>
+                      </div>
+                    </div>
+                  ) : notas_anteriores.length === 0 ? (
+                    <div className="text-center py-12 space-y-4">
+                      <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold text-foreground">
+                          No hay notas registradas
+                        </h3>
+                        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                          Las notas que crees aparecerán aquí para que puedas consultarlas
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[500px] pr-4">
+                      <div className="space-y-4">
+                        {notas_anteriores.map((nota) => (
+                          <Card key={nota.id} className="border hover:border-primary/50 transition-all duration-200">
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0">
+                                  <Calendar className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-muted-foreground font-medium">
+                                      {formatearFecha(nota.fecha_creacion)}
+                                    </p>
+                                  </div>
+                                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                                    {nota.contenido}
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

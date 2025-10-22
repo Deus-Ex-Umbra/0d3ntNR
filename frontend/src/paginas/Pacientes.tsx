@@ -47,6 +47,9 @@ export default function Pacientes() {
   const [dialogo_abierto, setDialogoAbierto] = useState(false);
   const [dialogo_ver_abierto, setDialogoVerAbierto] = useState(false);
   const [dialogo_color_abierto, setDialogoColorAbierto] = useState(false);
+  const [dialogo_whatsapp_abierto, setDialogoWhatsappAbierto] = useState(false);
+  const [telefono_whatsapp, setTelefonoWhatsapp] = useState('');
+  const [nombre_paciente_whatsapp, setNombrePacienteWhatsapp] = useState('');
   const [paciente_seleccionado, setPacienteSeleccionado] = useState<Paciente | null>(null);
   const [modo_edicion, setModoEdicion] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -264,9 +267,16 @@ export default function Pacientes() {
     return catalogos.colores.find(c => c.color === color_value);
   };
 
-  const abrirWhatsApp = (telefono: string) => {
-    const numero_limpio = telefono.replace(/[^\d]/g, '');
+  const prepararWhatsApp = (telefono: string, nombre: string, apellidos: string) => {
+    setTelefonoWhatsapp(telefono);
+    setNombrePacienteWhatsapp(`${nombre} ${apellidos}`);
+    setDialogoWhatsappAbierto(true);
+  };
+
+  const confirmarAbrirWhatsApp = () => {
+    const numero_limpio = telefono_whatsapp.replace(/[^\d]/g, '');
     window.open(`https://wa.me/${numero_limpio}`, '_blank');
+    setDialogoWhatsappAbierto(false);
   };
 
   const abrirDialogoNuevoColor = () => {
@@ -550,7 +560,7 @@ export default function Pacientes() {
                                 size="icon"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  abrirWhatsApp(paciente.telefono!);
+                                  prepararWhatsApp(paciente.telefono!, paciente.nombre, paciente.apellidos);
                                 }}
                                 className="h-7 w-7 hover:bg-green-500/20 hover:text-green-500 transition-all duration-200"
                                 title="Abrir WhatsApp"
@@ -887,6 +897,56 @@ export default function Pacientes() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={dialogo_whatsapp_abierto} onOpenChange={setDialogoWhatsappAbierto}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-500" />
+              Confirmar Apertura de WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              Verifica que la información sea correcta antes de continuar
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Paciente</Label>
+                <p className="text-sm font-semibold text-foreground">{nombre_paciente_whatsapp}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Número de Teléfono</Label>
+                <p className="text-base font-bold text-foreground">{telefono_whatsapp}</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+              <p className="text-xs text-muted-foreground">
+                Se abrirá WhatsApp en una nueva pestaña con este número. Asegúrate de que el número sea correcto.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDialogoWhatsappAbierto(false)}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={confirmarAbrirWhatsApp}
+              className="bg-green-500 hover:bg-green-600 text-white hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Abrir WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogo_color_abierto} onOpenChange={setDialogoColorAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1040,7 +1100,11 @@ export default function Pacientes() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => abrirWhatsApp(paciente_seleccionado.telefono!)}
+                            onClick={() => prepararWhatsApp(
+                              paciente_seleccionado.telefono!, 
+                              paciente_seleccionado.nombre, 
+                              paciente_seleccionado.apellidos
+                            )}
                             className="hover:bg-green-500/20 hover:text-green-500 hover:border-green-500 transition-all duration-200"
                           >
                             <MessageCircle className="h-4 w-4 mr-2" />
