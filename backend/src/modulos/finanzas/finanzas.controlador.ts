@@ -1,7 +1,9 @@
-import { Controller, Post, Body, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards, Put, Delete, Param } from '@nestjs/common';
 import { FinanzasServicio } from './finanzas.servicio';
 import { RegistrarEgresoDto } from './dto/registrar-egreso.dto';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
+import { ActualizarPagoDto } from './dto/actualizar-pago.dto';
+import { ActualizarEgresoDto } from './dto/actualizar-egreso.dto';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../autenticacion/guardias/jwt-auth.guardia';
 
@@ -17,9 +19,29 @@ export class FinanzasControlador {
     return this.finanzas_servicio.registrarEgreso(registrar_egreso_dto);
   }
 
+  @Put('egresos/:id')
+  actualizarEgreso(@Param('id') id: string, @Body() actualizar_egreso_dto: ActualizarEgresoDto) {
+    return this.finanzas_servicio.actualizarEgreso(+id, actualizar_egreso_dto);
+  }
+
+  @Delete('egresos/:id')
+  eliminarEgreso(@Param('id') id: string) {
+    return this.finanzas_servicio.eliminarEgreso(+id);
+  }
+
   @Post('pagos')
   registrarPago(@Body() registrar_pago_dto: RegistrarPagoDto) {
     return this.finanzas_servicio.registrarPago(registrar_pago_dto);
+  }
+
+  @Put('pagos/:id')
+  actualizarPago(@Param('id') id: string, @Body() actualizar_pago_dto: ActualizarPagoDto) {
+    return this.finanzas_servicio.actualizarPago(+id, actualizar_pago_dto);
+  }
+
+  @Delete('pagos/:id')
+  eliminarPago(@Param('id') id: string) {
+    return this.finanzas_servicio.eliminarPago(+id);
   }
 
   @Get('reporte')

@@ -825,7 +825,7 @@ export default function Tratamientos() {
                                   </p>
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="text-muted-foreground">Saldo</p>
+                                  <p className="text-muted-foreground">Pendiente</p>
                                   <p
                                     className={`font-semibold ${saldo_pendiente > 0 ? "text-red-500" : "text-green-500"}`}
                                   >
@@ -1091,7 +1091,7 @@ export default function Tratamientos() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm text-muted-foreground">
-                      Saldo
+                      Pendiente
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

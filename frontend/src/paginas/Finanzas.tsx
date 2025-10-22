@@ -6,19 +6,22 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X } from 'lucide-react';
 import { finanzasApi, planesTratamientoApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
+import { Badge } from '@/componentes/ui/badge';
 
 interface Movimiento {
+  id: number;
   tipo: 'ingreso' | 'egreso';
   fecha: Date;
   monto: number;
   concepto: string;
   cita_id?: number;
+  plan_tratamiento_id?: number;
 }
 
 interface ReporteFinanzas {
@@ -47,6 +50,9 @@ interface Cita {
     nombre: string;
     apellidos: string;
   };
+  plan_tratamiento?: {
+    id: number;
+  };
 }
 
 export default function Finanzas() {
@@ -59,6 +65,9 @@ export default function Finanzas() {
   const [dialogo_egreso_abierto, setDialogoEgresoAbierto] = useState(false);
   const [guardando_ingreso, setGuardandoIngreso] = useState(false);
   const [guardando_egreso, setGuardandoEgreso] = useState(false);
+  const [modo_edicion_ingreso, setModoEdicionIngreso] = useState(false);
+  const [modo_edicion_egreso, setModoEdicionEgreso] = useState(false);
+  const [movimiento_seleccionado, setMovimientoSeleccionado] = useState<Movimiento | null>(null);
   
   const [planes_tratamiento, setPlanesTratamiento] = useState<PlanTratamiento[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
@@ -143,6 +152,8 @@ export default function Finanzas() {
       fecha: new Date().toISOString().split('T')[0],
       monto: '',
     });
+    setModoEdicionIngreso(false);
+    setMovimientoSeleccionado(null);
     cargarDatosAdicionales();
     setDialogoIngresoAbierto(true);
   };
@@ -154,6 +165,35 @@ export default function Finanzas() {
       monto: '',
       cita_id: '',
     });
+    setModoEdicionEgreso(false);
+    setMovimientoSeleccionado(null);
+    cargarDatosAdicionales();
+    setDialogoEgresoAbierto(true);
+  };
+
+  const abrirEditarIngreso = (movimiento: Movimiento) => {
+    setFormularioIngreso({
+      plan_tratamiento_id: movimiento.plan_tratamiento_id?.toString() || '',
+      cita_id: movimiento.cita_id?.toString() || '',
+      concepto: movimiento.concepto || '',
+      fecha: new Date(movimiento.fecha).toISOString().split('T')[0],
+      monto: movimiento.monto.toString(),
+    });
+    setModoEdicionIngreso(true);
+    setMovimientoSeleccionado(movimiento);
+    cargarDatosAdicionales();
+    setDialogoIngresoAbierto(true);
+  };
+
+  const abrirEditarEgreso = (movimiento: Movimiento) => {
+    setFormularioEgreso({
+      concepto: movimiento.concepto || '',
+      fecha: new Date(movimiento.fecha).toISOString().split('T')[0],
+      monto: movimiento.monto.toString(),
+      cita_id: movimiento.cita_id?.toString() || '',
+    });
+    setModoEdicionEgreso(true);
+    setMovimientoSeleccionado(movimiento);
     cargarDatosAdicionales();
     setDialogoEgresoAbierto(true);
   };
@@ -180,26 +220,39 @@ export default function Finanzas() {
 
     setGuardandoIngreso(true);
     try {
-      const datos: any = {
-        fecha: new Date(formulario_ingreso.fecha),
-        monto,
-        concepto: formulario_ingreso.concepto || 'Ingreso general',
-      };
+      if (modo_edicion_ingreso && movimiento_seleccionado) {
+        const datos: any = {
+          fecha: new Date(formulario_ingreso.fecha),
+          monto,
+          concepto: formulario_ingreso.concepto || 'Ingreso general',
+        };
 
-      if (formulario_ingreso.plan_tratamiento_id) {
-        datos.plan_tratamiento_id = parseInt(formulario_ingreso.plan_tratamiento_id);
+        await finanzasApi.actualizarPago(movimiento_seleccionado.id, datos);
+        toast({
+          title: 'Éxito',
+          description: 'Ingreso actualizado correctamente',
+        });
+      } else {
+        const datos: any = {
+          fecha: new Date(formulario_ingreso.fecha),
+          monto,
+          concepto: formulario_ingreso.concepto || 'Ingreso general',
+        };
+
+        if (formulario_ingreso.plan_tratamiento_id) {
+          datos.plan_tratamiento_id = parseInt(formulario_ingreso.plan_tratamiento_id);
+        }
+
+        if (formulario_ingreso.cita_id) {
+          datos.cita_id = parseInt(formulario_ingreso.cita_id);
+        }
+
+        await finanzasApi.registrarPago(datos);
+        toast({
+          title: 'Éxito',
+          description: 'Ingreso registrado correctamente',
+        });
       }
-
-      if (formulario_ingreso.cita_id) {
-        datos.cita_id = parseInt(formulario_ingreso.cita_id);
-      }
-
-      await finanzasApi.registrarPago(datos);
-
-      toast({
-        title: 'Éxito',
-        description: 'Ingreso registrado correctamente',
-      });
 
       setDialogoIngresoAbierto(false);
       cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
@@ -237,34 +290,77 @@ export default function Finanzas() {
 
     setGuardandoEgreso(true);
     try {
-      const datos: any = {
-        concepto: formulario_egreso.concepto,
-        fecha: new Date(formulario_egreso.fecha),
-        monto,
-      };
+      if (modo_edicion_egreso && movimiento_seleccionado) {
+        const datos: any = {
+          concepto: formulario_egreso.concepto,
+          fecha: new Date(formulario_egreso.fecha),
+          monto,
+        };
 
-      if (formulario_egreso.cita_id) {
-        datos.cita_id = parseInt(formulario_egreso.cita_id);
+        if (formulario_egreso.cita_id) {
+          datos.cita_id = parseInt(formulario_egreso.cita_id);
+        }
+
+        await finanzasApi.actualizarEgreso(movimiento_seleccionado.id, datos);
+        toast({
+          title: 'Éxito',
+          description: 'Egreso actualizado correctamente',
+        });
+      } else {
+        const datos: any = {
+          concepto: formulario_egreso.concepto,
+          fecha: new Date(formulario_egreso.fecha),
+          monto,
+        };
+
+        if (formulario_egreso.cita_id) {
+          datos.cita_id = parseInt(formulario_egreso.cita_id);
+        }
+
+        await finanzasApi.registrarEgreso(datos);
+        toast({
+          title: 'Éxito',
+          description: 'Egreso registrado correctamente',
+        });
       }
-
-      await finanzasApi.registrarEgreso(datos);
-
-      toast({
-        title: 'Éxito',
-        description: 'Egreso registrado correctamente',
-      });
 
       setDialogoEgresoAbierto(false);
       cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al registrar egreso:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo registrar el egreso',
+        description: error.response?.data?.message || 'No se pudo registrar el egreso',
         variant: 'destructive',
       });
     } finally {
       setGuardandoEgreso(false);
+    }
+  };
+
+  const manejarEliminarMovimiento = async (movimiento: Movimiento) => {
+    if (!confirm(`¿Estás seguro de eliminar este ${movimiento.tipo}?`)) return;
+
+    try {
+      if (movimiento.tipo === 'ingreso') {
+        await finanzasApi.eliminarPago(movimiento.id);
+      } else {
+        await finanzasApi.eliminarEgreso(movimiento.id);
+      }
+
+      toast({
+        title: 'Éxito',
+        description: `${movimiento.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} eliminado correctamente`,
+      });
+
+      cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+    } catch (error) {
+      console.error('Error al eliminar movimiento:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar el movimiento',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -296,6 +392,14 @@ export default function Finanzas() {
   const opciones_citas: OpcionCombobox[] = [
     { valor: '', etiqueta: 'Sin cita asociada' },
     ...citas.map(c => ({
+      valor: c.id.toString(),
+      etiqueta: `${formatearFecha(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion}`
+    }))
+  ];
+
+  const opciones_citas_sin_plan: OpcionCombobox[] = [
+    { valor: '', etiqueta: 'Sin cita asociada' },
+    ...citas.filter(c => !c.plan_tratamiento).map(c => ({
       valor: c.id.toString(),
       etiqueta: `${formatearFecha(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion}`
     }))
@@ -486,12 +590,12 @@ export default function Finanzas() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {reporte.movimientos.map((movimiento, index) => (
+                  {reporte.movimientos.map((movimiento) => (
                     <div
-                      key={index}
+                      key={`${movimiento.tipo}-${movimiento.id}`}
                       className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 flex-1">
                         <div className={`p-2 rounded-lg hover:scale-110 transition-transform duration-200 ${
                           movimiento.tipo === 'ingreso' 
                             ? 'bg-green-500/10' 
@@ -503,22 +607,59 @@ export default function Finanzas() {
                             <TrendingDown className="h-5 w-5 text-red-500" />
                           )}
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium text-foreground">
                             {movimiento.concepto}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {formatearFecha(movimiento.fecha)}
                           </p>
+                          {(movimiento.cita_id || movimiento.plan_tratamiento_id) && (
+                            <div className="flex gap-2 mt-1">
+                              {movimiento.cita_id && (
+                                <Badge variant="outline" className="text-xs">
+                                  Cita #{movimiento.cita_id}
+                                </Badge>
+                              )}
+                              {movimiento.plan_tratamiento_id && (
+                                <Badge variant="outline" className="text-xs">
+                                  Plan #{movimiento.plan_tratamiento_id}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className={`text-lg font-bold ${
+                          movimiento.tipo === 'ingreso' 
+                            ? 'text-green-500' 
+                            : 'text-red-500'
+                        }`}>
+                          {movimiento.tipo === 'ingreso' ? '+' : '-'}
+                          {formatearMoneda(movimiento.monto)}
                         </div>
                       </div>
-                      <div className={`text-lg font-bold ${
-                        movimiento.tipo === 'ingreso' 
-                          ? 'text-green-500' 
-                          : 'text-red-500'
-                      }`}>
-                        {movimiento.tipo === 'ingreso' ? '+' : '-'}
-                        {formatearMoneda(movimiento.monto)}
+                      <div className="flex gap-2 ml-4">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => movimiento.tipo === 'ingreso' 
+                            ? abrirEditarIngreso(movimiento) 
+                            : abrirEditarEgreso(movimiento)
+                          }
+                          className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                          title="Editar"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => manejarEliminarMovimiento(movimiento)}
+                          className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -532,16 +673,23 @@ export default function Finanzas() {
       <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Registrar Ingreso</DialogTitle>
+            <DialogTitle>
+              {modo_edicion_ingreso ? 'Editar Ingreso' : 'Registrar Ingreso'}
+            </DialogTitle>
             <DialogDescription>
-              Registra un pago o ingreso a tu consultorio
+              {modo_edicion_ingreso 
+                ? 'Modifica los datos del ingreso'
+                : 'Registra un pago o ingreso a tu consultorio'
+              }
             </DialogDescription>
           </DialogHeader>
           
           <Tabs defaultValue="general" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="relacion">Relación</TabsTrigger>
+              <TabsTrigger value="relacion" disabled={modo_edicion_ingreso}>
+                Relación
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-4 mt-4">
@@ -581,6 +729,14 @@ export default function Finanzas() {
                   />
                 </div>
               </div>
+
+              {modo_edicion_ingreso && movimiento_seleccionado && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠️ No se pueden cambiar las relaciones de un ingreso existente
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="relacion" className="space-y-4 mt-4">
@@ -612,7 +768,7 @@ export default function Finanzas() {
                       placeholder="Selecciona una cita"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Vincula este ingreso a una cita específica
+                      Vincula este ingreso a una cita (se marcará como pagada automáticamente)
                     </p>
                   </div>
                 </>
@@ -635,7 +791,7 @@ export default function Finanzas() {
               className="bg-green-600 hover:bg-green-700 hover:shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:scale-105 transition-all duration-200"
             >
               {guardando_ingreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrar Ingreso
+              {modo_edicion_ingreso ? 'Actualizar' : 'Registrar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -644,9 +800,14 @@ export default function Finanzas() {
       <Dialog open={dialogo_egreso_abierto} onOpenChange={setDialogoEgresoAbierto}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Registrar Egreso</DialogTitle>
+            <DialogTitle>
+              {modo_edicion_egreso ? 'Editar Egreso' : 'Registrar Egreso'}
+            </DialogTitle>
             <DialogDescription>
-              Registra un gasto o egreso de tu consultorio
+              {modo_edicion_egreso 
+                ? 'Modifica los datos del egreso'
+                : 'Registra un gasto o egreso de tu consultorio'
+              }
             </DialogDescription>
           </DialogHeader>
           
@@ -697,14 +858,20 @@ export default function Finanzas() {
               <div className="space-y-2">
                 <Label>Cita Asociada (opcional)</Label>
                 <Combobox
-                  opciones={opciones_citas}
+                  opciones={opciones_citas_sin_plan}
                   valor={formulario_egreso.cita_id}
                   onChange={(valor) => setFormularioEgreso({ ...formulario_egreso, cita_id: valor })}
                   placeholder="Selecciona una cita"
+                  disabled={modo_edicion_egreso}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Vincula este egreso a una cita específica si aplica
+                  Solo citas sin plan de tratamiento (se marcarán como canceladas)
                 </p>
+                {modo_edicion_egreso && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠️ No se puede cambiar la cita asociada de un egreso existente
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -725,7 +892,7 @@ export default function Finanzas() {
               className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
             >
               {guardando_egreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Registrar Egreso
+              {modo_edicion_egreso ? 'Actualizar' : 'Registrar'}
             </Button>
           </DialogFooter>
         </DialogContent>

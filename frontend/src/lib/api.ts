@@ -174,6 +174,10 @@ export const agendaApi = {
     const respuesta = await api.delete(`/agenda/${id}`);
     return respuesta.data;
   },
+  obtenerPorId: async (id: number) => {
+    const respuesta = await api.get(`/agenda/${id}`);
+    return respuesta.data;
+  },
 };
 
 export const notasApi = {
@@ -203,8 +207,24 @@ export const finanzasApi = {
     const respuesta = await api.post('/finanzas/egresos', datos);
     return respuesta.data;
   },
+  actualizarEgreso: async (id: number, datos: { concepto?: string; fecha?: Date; monto?: number; cita_id?: number }) => {
+    const respuesta = await api.put(`/finanzas/egresos/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminarEgreso: async (id: number) => {
+    const respuesta = await api.delete(`/finanzas/egresos/${id}`);
+    return respuesta.data;
+  },
   registrarPago: async (datos: { plan_tratamiento_id?: number; cita_id?: number; fecha: Date; monto: number; concepto?: string }) => {
     const respuesta = await api.post('/finanzas/pagos', datos);
+    return respuesta.data;
+  },
+  actualizarPago: async (id: number, datos: { fecha?: Date; monto?: number; concepto?: string }) => {
+    const respuesta = await api.put(`/finanzas/pagos/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminarPago: async (id: number) => {
+    const respuesta = await api.delete(`/finanzas/pagos/${id}`);
     return respuesta.data;
   },
   obtenerReporte: async (fecha_inicio?: string, fecha_fin?: string) => {
