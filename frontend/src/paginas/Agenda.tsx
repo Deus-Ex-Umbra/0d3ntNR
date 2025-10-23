@@ -58,7 +58,7 @@ export default function Agenda() {
 
   const [formulario, setFormulario] = useState({
     paciente_id: '',
-    fecha: '',
+    fecha: undefined as Date | undefined,
     descripcion: '',
     estado_pago: 'pendiente',
     monto_esperado: '',
@@ -163,7 +163,7 @@ export default function Agenda() {
   const abrirDialogoNuevo = () => {
     setFormulario({
       paciente_id: '',
-      fecha: new Date().toISOString().slice(0, 16),
+      fecha: new Date(),
       descripcion: '',
       estado_pago: 'pendiente',
       monto_esperado: '',
@@ -175,7 +175,7 @@ export default function Agenda() {
   const abrirDialogoEditar = (cita: Cita) => {
     setFormulario({
       paciente_id: cita.paciente?.id.toString() || '',
-      fecha: new Date(cita.fecha).toISOString().slice(0, 16),
+      fecha: new Date(cita.fecha),
       descripcion: cita.descripcion,
       estado_pago: cita.estado_pago || 'pendiente',
       monto_esperado: cita.monto_esperado?.toString() || '',
@@ -198,7 +198,7 @@ export default function Agenda() {
     setGuardando(true);
     try {
       const datos: any = {
-        fecha: new Date(formulario.fecha),
+        fecha: formulario.fecha,
         descripcion: formulario.descripcion,
       };
 
@@ -248,24 +248,24 @@ export default function Agenda() {
       setDialogoAbierto(false);
       cargarDatos();
     } catch (error: any) {
-  console.error('Error al guardar cita:', error);
-  
-  const mensaje_error = error.response?.data?.message || 'No se pudo guardar la cita';
-  
-  toast({
-    title: 'Error - Conflicto de Horarios',
-    description: (
-      <div className="space-y-2">
-        <div className="flex items-start gap-2">
-          <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-          <p className="text-sm">{mensaje_error}</p>
-        </div>
-      </div>
-    ),
-    variant: 'destructive',
-    duration: 10000,
-  });
-}finally {
+      console.error('Error al guardar cita:', error);
+      
+      const mensaje_error = error.response?.data?.message || 'No se pudo guardar la cita';
+      
+      toast({
+        title: 'Error - Conflicto de Horarios',
+        description: (
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{mensaje_error}</p>
+            </div>
+          </div>
+        ),
+        variant: 'destructive',
+        duration: 10000,
+      });
+    } finally {
       setGuardando(false);
     }
   };
@@ -677,8 +677,8 @@ export default function Agenda() {
             <div className="space-y-2">
               <Label htmlFor="fecha">Fecha y Hora *</Label>
               <DateTimePicker
-                valor={formulario.fecha ? new Date(formulario.fecha) : undefined}
-                onChange={(fecha) => fecha && setFormulario({ ...formulario, fecha: fecha.toISOString().slice(0, 16) })}
+                valor={formulario.fecha}
+                onChange={(fecha) => setFormulario({ ...formulario, fecha })}
                 placeholder="Selecciona fecha y hora"
               />
             </div>

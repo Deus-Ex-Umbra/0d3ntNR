@@ -132,12 +132,12 @@ export default function Tratamientos() {
   const [formulario_asignar, setFormularioAsignar] = useState({
     paciente_id: "",
     tratamiento_id: "",
-    fecha_inicio: "",
+    fecha_inicio: undefined as Date | undefined,
     hora_inicio: "09:00",
   });
 
   const [formulario_cita, setFormularioCita] = useState({
-    fecha: "",
+    fecha: undefined as Date | undefined,
     descripcion: "",
     estado_pago: "pendiente",
     monto_esperado: "",
@@ -352,11 +352,18 @@ export default function Tratamientos() {
     setFormularioAsignar({
       paciente_id: "",
       tratamiento_id: tratamiento.id.toString(),
-      fecha_inicio: new Date().toISOString().split("T")[0],
+      fecha_inicio: new Date(),
       hora_inicio: "09:00",
     });
     setTratamientoSeleccionado(tratamiento);
     setDialogoAsignarAbierto(true);
+  };
+
+  const formatearFechaParaBackend = (fecha: Date): string => {
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
   };
 
   const manejarAsignarTratamiento = async () => {
@@ -379,7 +386,7 @@ export default function Tratamientos() {
       await planesTratamientoApi.asignar({
         paciente_id: parseInt(formulario_asignar.paciente_id),
         tratamiento_id: parseInt(formulario_asignar.tratamiento_id),
-        fecha_inicio: formulario_asignar.fecha_inicio,
+        fecha_inicio: formatearFechaParaBackend(formulario_asignar.fecha_inicio),
         hora_inicio: formulario_asignar.hora_inicio,
       });
       toast({
@@ -418,7 +425,7 @@ export default function Tratamientos() {
 
   const abrirDialogoNuevaCita = () => {
     setFormularioCita({
-      fecha: new Date().toISOString().slice(0, 16),
+      fecha: new Date(),
       descripcion: "",
       estado_pago: "pendiente",
       monto_esperado: "",
@@ -429,7 +436,7 @@ export default function Tratamientos() {
 
   const abrirDialogoEditarCita = (cita: any) => {
     setFormularioCita({
-      fecha: new Date(cita.fecha).toISOString().slice(0, 16),
+      fecha: new Date(cita.fecha),
       descripcion: cita.descripcion,
       estado_pago: cita.estado_pago || 'pendiente',
       monto_esperado: cita.monto_esperado?.toString() || "",
@@ -454,7 +461,7 @@ export default function Tratamientos() {
       const datos: any = {
         paciente_id: plan_seleccionado.paciente.id,
         plan_tratamiento_id: plan_seleccionado.id,
-        fecha: new Date(formulario_cita.fecha),
+        fecha: formulario_cita.fecha,
         descripcion: formulario_cita.descripcion,
         estado_pago: formulario_cita.estado_pago,
         monto_esperado: formulario_cita.monto_esperado ? parseFloat(formulario_cita.monto_esperado) : 0,
@@ -1123,10 +1130,10 @@ export default function Tratamientos() {
               <div className="space-y-2">
                 <Label htmlFor="fecha_inicio">Fecha de Inicio *</Label>
                 <DatePicker
-                  valor={formulario_asignar.fecha_inicio ? new Date(formulario_asignar.fecha_inicio) : undefined}
+                  valor={formulario_asignar.fecha_inicio}
                   onChange={(fecha) => fecha && setFormularioAsignar({
                     ...formulario_asignar,
-                    fecha_inicio: fecha.toISOString().split('T')[0],
+                    fecha_inicio: fecha,
                   })}
                   placeholder="Selecciona fecha de inicio"
                 />
@@ -1391,8 +1398,8 @@ export default function Tratamientos() {
             <div className="space-y-2">
               <Label htmlFor="fecha_cita">Fecha y Hora *</Label>
               <DateTimePicker
-                valor={formulario_cita.fecha ? new Date(formulario_cita.fecha) : undefined}
-                onChange={(fecha) => fecha && setFormularioCita({ ...formulario_cita, fecha: fecha.toISOString().slice(0, 16) })}
+                valor={formulario_cita.fecha}
+                onChange={(fecha) => setFormularioCita({ ...formulario_cita, fecha })}
                 placeholder="Selecciona fecha y hora"
               />
             </div>

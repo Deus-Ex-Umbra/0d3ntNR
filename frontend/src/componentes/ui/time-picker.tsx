@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Clock } from "lucide-react"
+import { Clock, ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utilidades"
 import { Button } from "@/componentes/ui/button"
@@ -24,6 +24,7 @@ export function TimePicker({
   placeholder = "Selecciona una hora",
   className,
 }: TimePickerProps) {
+  const [abierto, setAbierto] = React.useState(false)
   const [hora_interna, setHoraInterna] = React.useState<string>(valor || "09:00")
 
   React.useEffect(() => {
@@ -39,18 +40,21 @@ export function TimePicker({
   }
 
   return (
-    <Popover>
+    <Popover open={abierto} onOpenChange={setAbierto}>
       <PopoverTrigger asChild>
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal hover:border-primary/50 transition-all duration-200",
+            "w-full justify-between text-left font-normal hover:border-primary/50 transition-all duration-200",
             !hora_interna && "text-muted-foreground",
             className
           )}
         >
-          <Clock className="mr-2 h-4 w-4" />
-          {hora_interna ? <span>{hora_interna}</span> : <span>{placeholder}</span>}
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            {hora_interna ? <span>{hora_interna}</span> : <span>{placeholder}</span>}
+          </div>
+          <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-4" align="start">

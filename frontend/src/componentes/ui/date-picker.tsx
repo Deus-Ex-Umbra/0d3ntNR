@@ -1,6 +1,6 @@
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Calendar as CalendarIcon } from "lucide-react"
+import { Calendar as CalendarIcon, ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utilidades"
 import { Button } from "@/componentes/ui/button"
@@ -30,13 +30,16 @@ export function DatePicker({
         <Button
           variant={"outline"}
           className={cn(
-            "w-full justify-start text-left font-normal hover:border-primary/50 transition-all duration-200",
+            "w-full justify-between text-left font-normal hover:border-primary/50 transition-all duration-200",
             !valor && "text-muted-foreground",
             className
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {valor ? format(valor, "PPP", { locale: es }) : <span>{placeholder}</span>}
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            {valor ? format(valor, "PPP", { locale: es }) : <span>{placeholder}</span>}
+          </div>
+          <ChevronDown className="h-4 w-4 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -46,6 +49,7 @@ export function DatePicker({
           onSelect={onChange}
           initialFocus
           locale={es}
+          captionLayout="dropdown"
         />
       </PopoverContent>
     </Popover>

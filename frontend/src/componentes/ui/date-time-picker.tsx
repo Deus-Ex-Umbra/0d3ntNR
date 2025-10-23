@@ -1,7 +1,7 @@
 import * as React from "react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Calendar as CalendarIcon, Clock } from "lucide-react"
+import { Calendar as CalendarIcon, ChevronDown, Clock } from "lucide-react"
 
 import { cn } from "@/lib/utilidades"
 import { Button } from "@/componentes/ui/button"
@@ -27,14 +27,13 @@ export function DateTimePicker({
   placeholder = "Selecciona fecha y hora",
   className,
 }: DateTimePickerProps) {
-  const [fecha_seleccionada, setFechaSeleccionada] = React.useState<Date | undefined>(valor)
+  const [abierto, setAbierto] = React.useState(false)
   const [hora, setHora] = React.useState<string>(
     valor ? format(valor, "HH:mm") : "09:00"
   )
 
   React.useEffect(() => {
     if (valor) {
-      setFechaSeleccionada(valor)
       setHora(format(valor, "HH:mm"))
     }
   }, [valor])
@@ -42,12 +41,10 @@ export function DateTimePicker({
   const manejarCambioFecha = (nueva_fecha: Date | undefined) => {
     if (nueva_fecha) {
       const [horas, minutos] = hora.split(':').map(Number)
-      nueva_fecha.setHours(horas, minutos, 0, 0)
-      setFechaSeleccionada(nueva_fecha)
-      onChange(nueva_fecha)
-    } else {
-      setFechaSeleccionada(undefined)
-      onChange(undefined)
+      const fecha_actualizada = new Date(nueva_fecha)
+      fecha_actualizada.setHours(horas, minutos, 0, 0)
+      onChange(fecha_actualizada)
+      setAbierto(false)
     }
   }
 
@@ -55,57 +52,54 @@ export function DateTimePicker({
     const nueva_hora = e.target.value
     setHora(nueva_hora)
     
-    if (fecha_seleccionada && nueva_hora) {
+    if (valor && nueva_hora) {
       const [horas, minutos] = nueva_hora.split(':').map(Number)
-      const nueva_fecha = new Date(fecha_seleccionada)
-      nueva_fecha.setHours(horas, minutos, 0, 0)
-      onChange(nueva_fecha)
+      const fecha_actualizada = new Date(valor)
+      fecha_actualizada.setHours(horas, minutos, 0, 0)
+      onChange(fecha_actualizada)
     }
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-full justify-start text-left font-normal hover:border-primary/50 transition-all duration-200",
-            !fecha_seleccionada && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {fecha_seleccionada ? (
-            <>
-              {format(fecha_seleccionada, "PPP", { locale: es })} - {hora}
-            </>
-          ) : (
-            <span>{placeholder}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={fecha_seleccionada}
-          onSelect={manejarCambioFecha}
-          initialFocus
-          locale={es}
-        />
-        <div className="p-3 border-t border-border">
-          <Label htmlFor="hora" className="text-sm font-medium mb-2 flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Hora
-          </Label>
-          <Input
-            id="hora"
-            type="time"
-            value={hora}
-            onChange={manejarCambioHora}
-            className="mt-2"
+    <div className="flex gap-2">
+      <Popover open={abierto} onOpenChange={setAbierto}>
+        <PopoverTrigger asChild>
+          <Button
+            variant={"outline"}
+            className={cn(
+              "flex-1 justify-between text-left font-normal hover:border-primary/50 transition-all duration-200",
+              !valor && "text-muted-foreground",
+              className
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              {valor ? format(valor, "PPP", { locale: es }) : <span>{placeholder}</span>}
+            </div>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={valor}
+            onSelect={manejarCambioFecha}
+            initialFocus
+            locale={es}
+            captionLayout="dropdown"
           />
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+      
+      <div className="flex items-center gap-2 min-w-[120px]">
+        <Clock className="h-4 w-4 text-muted-foreground" />
+        <Input
+          type="time"
+          value={hora}
+          onChange={manejarCambioHora}
+          className="w-full"
+        />
+      </div>
+    </div>
   )
 }

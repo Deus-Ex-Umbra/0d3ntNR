@@ -63,6 +63,7 @@ export default function Finanzas() {
   
   const [dialogo_ingreso_abierto, setDialogoIngresoAbierto] = useState(false);
   const [dialogo_egreso_abierto, setDialogoEgresoAbierto] = useState(false);
+  const [dialogo_filtros_abierto, setDialogoFiltrosAbierto] = useState(false);
   const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [guardando_ingreso, setGuardandoIngreso] = useState(false);
   const [guardando_egreso, setGuardandoEgreso] = useState(false);
@@ -78,8 +79,8 @@ export default function Finanzas() {
   const [fecha_grafico, setFechaGrafico] = useState(new Date());
 
   const [filtros, setFiltros] = useState({
-    fecha_inicio: new Date(),
-    fecha_fin: new Date(),
+    fecha_inicio: undefined as Date | undefined,
+    fecha_fin: undefined as Date | undefined,
     busqueda: '',
   });
 
@@ -128,7 +129,11 @@ export default function Finanzas() {
   const cargarDatosGrafico = async () => {
     setCargandoGrafico(true);
     try {
-      const fecha_str = fecha_grafico.toISOString().split('T')[0];
+      const anio = fecha_grafico.getFullYear();
+      const mes = String(fecha_grafico.getMonth() + 1).padStart(2, '0');
+      const dia = String(fecha_grafico.getDate()).padStart(2, '0');
+      const fecha_str = `${anio}-${mes}-${dia}`;
+      
       const datos = await finanzasApi.obtenerDatosGrafico(tipo_grafico, fecha_str);
       setDatosGrafico(datos);
     } catch (error) {
@@ -155,6 +160,13 @@ export default function Finanzas() {
     }
   };
 
+  const formatearFechaParaBackend = (fecha: Date): string => {
+    const anio = fecha.getFullYear();
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
+  };
+
   const manejarFiltrarPorFechas = async () => {
     if (!filtros.fecha_inicio || !filtros.fecha_fin) {
       toast({
@@ -166,11 +178,12 @@ export default function Finanzas() {
     }
 
     try {
-      const inicio = filtros.fecha_inicio.toISOString().split('T')[0];
-      const fin = filtros.fecha_fin.toISOString().split('T')[0];
+      const inicio = formatearFechaParaBackend(filtros.fecha_inicio);
+      const fin = formatearFechaParaBackend(filtros.fecha_fin);
       const datos = await finanzasApi.obtenerReporte(inicio, fin);
       setReporte(datos);
       setFiltrosAplicados(true);
+      setDialogoFiltrosAbierto(false);
     } catch (error) {
       console.error('Error al filtrar:', error);
       toast({
@@ -182,14 +195,21 @@ export default function Finanzas() {
   };
 
   const limpiarFiltros = () => {
-    const hoy = new Date();
     setFiltros({
-      fecha_inicio: hoy,
-      fecha_fin: hoy,
+      fecha_inicio: undefined,
+      fecha_fin: undefined,
       busqueda: '',
     });
     setReporte(reporte_general);
     setFiltrosAplicados(false);
+    setDialogoFiltrosAbierto(false);
+  };
+
+  const contarFiltrosActivos = () => {
+    let contador = 0;
+    if (filtros.fecha_inicio && filtros.fecha_fin) contador++;
+    if (filtros.busqueda) contador++;
+    return contador;
   };
 
   const abrirDialogoIngreso = () => {
@@ -795,64 +815,60 @@ export default function Finanzas() {
 
           <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                  <FileText className="h-5 w-5 text-primary" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Historial de Movimientos</CardTitle>
+                    <CardDescription>
+                      {Object.values(movimientos_agrupados).flat().length} de {reporte?.movimientos.length || 0} movimientos
+                      {filtros.busqueda && ' (filtrados por búsqueda)'}
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-xl">Historial de Movimientos</CardTitle>
-                  <CardDescription>
-                    {Object.values(movimientos_agrupados).flat().length} de {reporte?.movimientos.length || 0} movimientos
-                    {filtros.busqueda && ' (filtrados por búsqueda)'}
-                  </CardDescription>
+                <div className="flex gap-2">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => setDialogoFiltrosAbierto(true)}
+                    className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200 relative"
+                  >
+                    <Filter className="h-5 w-5 mr-2" />
+                    Filtros
+                    {contarFiltrosActivos() > 0 && (
+                      <Badge className="ml-2 bg-primary text-primary-foreground">
+                        {contarFiltrosActivos()}
+                      </Badge>
+                    )}
+                  </Button>
+                  {contarFiltrosActivos() > 0 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={limpiarFiltros}
+                      className="hover:scale-105 transition-all duration-200"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Limpiar
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-4 items-end">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="busqueda">Buscar por concepto</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="busqueda"
-                      value={filtros.busqueda}
-                      onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
-                      placeholder="Ej: pago, compra, factura..."
-                      className="pl-10 hover:border-primary/50 focus:border-primary transition-all duration-200"
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="fecha_inicio">Fecha Inicio</Label>
-                  <DatePicker
-                    valor={filtros.fecha_inicio}
-                    onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_inicio: fecha })}
-                    placeholder="Selecciona fecha inicio"
+              <div className="space-y-2">
+                <Label htmlFor="busqueda">Buscar por concepto</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="busqueda"
+                    value={filtros.busqueda}
+                    onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
+                    placeholder="Ej: pago, compra, factura..."
+                    className="pl-10 hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
                 </div>
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="fecha_fin">Fecha Fin</Label>
-                  <DatePicker
-                    valor={filtros.fecha_fin}
-                    onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_fin: fecha })}
-                    placeholder="Selecciona fecha fin"
-                  />
-                </div>
-                <Button 
-                  onClick={manejarFiltrarPorFechas}
-                  className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-                >
-                  Filtrar
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={limpiarFiltros}
-                  className="hover:scale-105 transition-all duration-200"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Limpiar
-                </Button>
               </div>
 
               {Object.keys(movimientos_agrupados).length === 0 ? (
@@ -962,6 +978,60 @@ export default function Finanzas() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={dialogo_filtros_abierto} onOpenChange={setDialogoFiltrosAbierto}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Filtros de Finanzas</DialogTitle>
+            <DialogDescription>
+              Filtra los movimientos por rango de fechas
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="fecha_inicio">Fecha de Inicio</Label>
+              <DatePicker
+                valor={filtros.fecha_inicio}
+                onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_inicio: fecha })}
+                placeholder="Selecciona fecha de inicio"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fecha_fin">Fecha de Fin</Label>
+              <DatePicker
+                valor={filtros.fecha_fin}
+                onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_fin: fecha })}
+                placeholder="Selecciona fecha de fin"
+              />
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                Los filtros incluyen todos los movimientos desde el inicio del día de la fecha inicial hasta el fin del día de la fecha final.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={limpiarFiltros}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Limpiar
+            </Button>
+            <Button
+              onClick={manejarFiltrarPorFechas}
+              className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Aplicar Filtros
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogo_ingreso_abierto} onOpenChange={setDialogoIngresoAbierto}>
         <DialogContent className="sm:max-w-[500px]">
