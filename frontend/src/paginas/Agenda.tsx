@@ -13,6 +13,7 @@ import { Toaster } from '@/componentes/ui/toaster';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { ajustarFechaParaBackend } from '@/lib/utilidades';
 
 interface Cita {
   id: number;
@@ -198,7 +199,7 @@ export default function Agenda() {
     setGuardando(true);
     try {
       const datos: any = {
-        fecha: formulario.fecha,
+        fecha: ajustarFechaParaBackend(formulario.fecha),
         descripcion: formulario.descripcion,
       };
 

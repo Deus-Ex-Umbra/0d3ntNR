@@ -26,7 +26,7 @@ export class PlanesTratamientoServicio {
     const [horas, minutos] = hora_inicio.split(':').map(Number);
     
     const fecha_actual = new Date(fecha_inicio);
-    fecha_actual.setUTCHours(horas, minutos, 0, 0);
+    fecha_actual.setHours(horas, minutos, 0, 0);
     
     const intervalo_dias = tratamiento_plantilla.intervalo_dias || 0;
     const intervalo_semanas = tratamiento_plantilla.intervalo_semanas || 0;

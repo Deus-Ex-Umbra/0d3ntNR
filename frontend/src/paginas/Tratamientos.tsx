@@ -55,6 +55,7 @@ import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 import { TimePicker } from '@/componentes/ui/time-picker';
+import { ajustarFechaParaBackend } from "@/lib/utilidades";
 
 interface Tratamiento {
   id: number;
@@ -461,7 +462,7 @@ export default function Tratamientos() {
       const datos: any = {
         paciente_id: plan_seleccionado.paciente.id,
         plan_tratamiento_id: plan_seleccionado.id,
-        fecha: formulario_cita.fecha,
+        fecha: ajustarFechaParaBackend(formulario_cita.fecha),
         descripcion: formulario_cita.descripcion,
         estado_pago: formulario_cita.estado_pago,
         monto_esperado: formulario_cita.monto_esperado ? parseFloat(formulario_cita.monto_esperado) : 0,
