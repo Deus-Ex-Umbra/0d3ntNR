@@ -63,11 +63,13 @@ export default function Finanzas() {
   
   const [dialogo_ingreso_abierto, setDialogoIngresoAbierto] = useState(false);
   const [dialogo_egreso_abierto, setDialogoEgresoAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [guardando_ingreso, setGuardandoIngreso] = useState(false);
   const [guardando_egreso, setGuardandoEgreso] = useState(false);
   const [modo_edicion_ingreso, setModoEdicionIngreso] = useState(false);
   const [modo_edicion_egreso, setModoEdicionEgreso] = useState(false);
   const [movimiento_seleccionado, setMovimientoSeleccionado] = useState<Movimiento | null>(null);
+  const [movimiento_a_eliminar, setMovimientoAEliminar] = useState<Movimiento | null>(null);
   
   const [planes_tratamiento, setPlanesTratamiento] = useState<PlanTratamiento[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
@@ -338,21 +340,28 @@ export default function Finanzas() {
     }
   };
 
-  const manejarEliminarMovimiento = async (movimiento: Movimiento) => {
-    if (!confirm(`¿Estás seguro de eliminar este ${movimiento.tipo}?`)) return;
+  const abrirDialogoConfirmarEliminar = (movimiento: Movimiento) => {
+    setMovimientoAEliminar(movimiento);
+    setDialogoConfirmarEliminarAbierto(true);
+  };
+
+  const confirmarEliminarMovimiento = async () => {
+    if (!movimiento_a_eliminar) return;
 
     try {
-      if (movimiento.tipo === 'ingreso') {
-        await finanzasApi.eliminarPago(movimiento.id);
+      if (movimiento_a_eliminar.tipo === 'ingreso') {
+        await finanzasApi.eliminarPago(movimiento_a_eliminar.id);
       } else {
-        await finanzasApi.eliminarEgreso(movimiento.id);
+        await finanzasApi.eliminarEgreso(movimiento_a_eliminar.id);
       }
 
       toast({
         title: 'Éxito',
-        description: `${movimiento.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} eliminado correctamente`,
+        description: `${movimiento_a_eliminar.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} eliminado correctamente`,
       });
 
+      setDialogoConfirmarEliminarAbierto(false);
+      setMovimientoAEliminar(null);
       cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
@@ -654,7 +663,7 @@ export default function Finanzas() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => manejarEliminarMovimiento(movimiento)}
+                          onClick={() => abrirDialogoConfirmarEliminar(movimiento)}
                           className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
                           title="Eliminar"
                         >
@@ -893,6 +902,57 @@ export default function Finanzas() {
             >
               {guardando_egreso && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo_edicion_egreso ? 'Actualizar' : 'Registrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este {movimiento_a_eliminar?.tipo === 'ingreso' ? 'ingreso' : 'egreso'}?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {movimiento_a_eliminar && (
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+              <p className="font-semibold text-foreground">{movimiento_a_eliminar.concepto}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatearFecha(movimiento_a_eliminar.fecha)}
+              </p>
+              <p className={`text-lg font-bold ${
+                movimiento_a_eliminar.tipo === 'ingreso' ? 'text-green-500' : 'text-red-500'
+              }`}>
+                {formatearMoneda(movimiento_a_eliminar.monto)}
+              </p>
+            </div>
+          )}
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarAbierto(false);
+                setMovimientoAEliminar(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmarEliminarMovimiento}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>

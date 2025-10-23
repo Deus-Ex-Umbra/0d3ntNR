@@ -46,7 +46,7 @@ import {
   User,
   CheckCircle,
 } from "lucide-react";
-import { tratamientosApi, planesTratamientoApi, pacientesApi, agendaApi, finanzasApi } from "@/lib/api";
+import { tratamientosApi, planesTratamientoApi, pacientesApi, agendaApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/componentes/ui/toaster";
 import { Badge } from "@/componentes/ui/badge";
@@ -103,14 +103,15 @@ export default function Tratamientos() {
   const [dialogo_asignar_abierto, setDialogoAsignarAbierto] = useState(false);
   const [dialogo_detalle_plan_abierto, setDialogoDetallePlanAbierto] = useState(false);
   const [dialogo_cita_abierto, setDialogoCitaAbierto] = useState(false);
+  const [dialogo_confirmar_eliminar_abierto, setDialogoConfirmarEliminarAbierto] = useState(false);
   const [modo_edicion, setModoEdicion] = useState(false);
   const [modo_edicion_cita, setModoEdicionCita] = useState(false);
   const [tratamiento_seleccionado, setTratamientoSeleccionado] = useState<Tratamiento | null>(null);
   const [plan_seleccionado, setPlanSeleccionado] = useState<PlanTratamiento | null>(null);
   const [cita_seleccionada, setCitaSeleccionada] = useState<any>(null);
+  const [cita_a_eliminar, setCitaAEliminar] = useState<any>(null);
   const [guardando, setGuardando] = useState(false);
   const [paciente_filtro, setPacienteFiltro] = useState<string>("todos");
-  const [estado_pago_anterior_cita, setEstadoPagoAnteriorCita] = useState<string>('');
 
   const [formulario_plantilla, setFormularioPlantilla] = useState({
     nombre: "",
@@ -176,6 +177,22 @@ export default function Tratamientos() {
       });
     } finally {
       setCargandoPlanes(false);
+    }
+  };
+
+  const recargarPlanSeleccionado = async () => {
+    if (!plan_seleccionado) return;
+    
+    try {
+      const planes_actualizados = await planesTratamientoApi.obtenerTodos();
+      const plan_actualizado = planes_actualizados.find((p: PlanTratamiento) => p.id === plan_seleccionado.id);
+      
+      if (plan_actualizado) {
+        setPlanSeleccionado(plan_actualizado);
+        setPlanes(planes_actualizados.filter((p: PlanTratamiento) => p.paciente && p.tratamiento));
+      }
+    } catch (error) {
+      console.error("Error al recargar plan:", error);
     }
   };
 
@@ -267,16 +284,22 @@ export default function Tratamientos() {
     }
   };
 
-  const manejarEliminar = async (id: number) => {
-    if (!confirm("¿Estás seguro de eliminar esta plantilla de tratamiento?"))
-      return;
+  const abrirDialogoConfirmarEliminarPlantilla = (tratamiento: Tratamiento) => {
+    setTratamientoSeleccionado(tratamiento);
+    setDialogoConfirmarEliminarAbierto(true);
+  };
+
+  const confirmarEliminarPlantilla = async () => {
+    if (!tratamiento_seleccionado) return;
 
     try {
-      await tratamientosApi.eliminar(id);
+      await tratamientosApi.eliminar(tratamiento_seleccionado.id);
       toast({
         title: "Éxito",
         description: "Tratamiento eliminado correctamente",
       });
+      setDialogoConfirmarEliminarAbierto(false);
+      setTratamientoSeleccionado(null);
       cargarDatos();
     } catch (error) {
       console.error("Error al eliminar tratamiento:", error);
@@ -351,7 +374,6 @@ export default function Tratamientos() {
       monto_esperado: "",
     });
     setModoEdicionCita(false);
-    setEstadoPagoAnteriorCita('');
     setDialogoCitaAbierto(true);
   };
 
@@ -364,29 +386,7 @@ export default function Tratamientos() {
     });
     setCitaSeleccionada(cita);
     setModoEdicionCita(true);
-    setEstadoPagoAnteriorCita(cita.estado_pago || 'pendiente');
     setDialogoCitaAbierto(true);
-  };
-
-  const manejarCambioEstadoPagoCita = async (cita_id: number, nuevo_estado: string, monto: number) => {
-    try {
-      if (nuevo_estado === 'pagado' && monto > 0) {
-        await finanzasApi.registrarPago({
-          cita_id,
-          plan_tratamiento_id: plan_seleccionado?.id,
-          fecha: new Date(),
-          monto,
-          concepto: 'Pago de cita del plan de tratamiento',
-        });
-        toast({
-          title: 'Pago registrado',
-          description: `Se ha registrado el ingreso de ${formatearMoneda(monto)}`,
-        });
-      }
-    } catch (error) {
-      console.error('Error al manejar pago:', error);
-      throw error;
-    }
   };
 
   const manejarGuardarCita = async () => {
@@ -412,30 +412,12 @@ export default function Tratamientos() {
 
       if (modo_edicion_cita && cita_seleccionada) {
         await agendaApi.actualizar(cita_seleccionada.id, datos);
-        
-        if (estado_pago_anterior_cita !== formulario_cita.estado_pago) {
-          await manejarCambioEstadoPagoCita(
-            cita_seleccionada.id,
-            formulario_cita.estado_pago,
-            parseFloat(formulario_cita.monto_esperado) || 0
-          );
-        }
-        
         toast({
           title: "Éxito",
           description: "Cita actualizada correctamente",
         });
       } else {
-        const cita_creada = await agendaApi.crear(datos);
-        
-        if (formulario_cita.estado_pago === 'pagado' && parseFloat(formulario_cita.monto_esperado) > 0) {
-          await manejarCambioEstadoPagoCita(
-            cita_creada.id,
-            formulario_cita.estado_pago,
-            parseFloat(formulario_cita.monto_esperado)
-          );
-        }
-        
+        await agendaApi.crear(datos);
         toast({
           title: "Éxito",
           description: "Cita agregada al plan correctamente",
@@ -443,12 +425,7 @@ export default function Tratamientos() {
       }
       
       setDialogoCitaAbierto(false);
-      await cargarPlanes();
-      
-      const plan_actualizado = planes.find(p => p.id === plan_seleccionado.id);
-      if (plan_actualizado) {
-        setPlanSeleccionado(plan_actualizado);
-      }
+      await recargarPlanSeleccionado();
     } catch (error: any) {
       console.error("Error al guardar cita:", error);
       toast({
@@ -461,24 +438,24 @@ export default function Tratamientos() {
     }
   };
 
-  const manejarEliminarCita = async (cita_id: number) => {
-    if (!confirm("¿Estás seguro de eliminar esta cita del plan?")) return;
+  const abrirDialogoConfirmarEliminarCita = (cita: any) => {
+    setCitaAEliminar(cita);
+    setDialogoConfirmarEliminarAbierto(true);
+  };
+
+  const confirmarEliminarCita = async () => {
+    if (!cita_a_eliminar) return;
 
     try {
-      await agendaApi.eliminar(cita_id);
+      await agendaApi.eliminar(cita_a_eliminar.id);
       toast({
         title: "Éxito",
         description: "Cita eliminada correctamente",
       });
       
-      await cargarPlanes();
-      
-      if (plan_seleccionado) {
-        const plan_actualizado = planes.find(p => p.id === plan_seleccionado.id);
-        if (plan_actualizado) {
-          setPlanSeleccionado(plan_actualizado);
-        }
-      }
+      setDialogoConfirmarEliminarAbierto(false);
+      setCitaAEliminar(null);
+      await recargarPlanSeleccionado();
     } catch (error) {
       console.error("Error al eliminar cita:", error);
       toast({
@@ -693,7 +670,7 @@ export default function Tratamientos() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => manejarEliminar(tratamiento.id)}
+                                onClick={() => abrirDialogoConfirmarEliminarPlantilla(tratamiento)}
                                 className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
                                 title="Eliminar"
                               >
@@ -1171,7 +1148,7 @@ export default function Tratamientos() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => manejarEliminarCita(cita.id)}
+                              onClick={() => abrirDialogoConfirmarEliminarCita(cita)}
                               className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
                               title="Eliminar"
                             >
@@ -1262,11 +1239,6 @@ export default function Tratamientos() {
                   onChange={(valor) => setFormularioCita({ ...formulario_cita, estado_pago: valor })}
                   placeholder="Estado"
                 />
-                {modo_edicion_cita && estado_pago_anterior_cita !== formulario_cita.estado_pago && (
-                  <p className="text-xs text-amber-500">
-                    ⚠️ El cambio de estado afectará el registro de pagos
-                  </p>
-                )}
               </div>
 
               <div className="space-y-2">
@@ -1288,7 +1260,7 @@ export default function Tratamientos() {
               <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
                 <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-2">
                   <DollarSign className="h-3 w-3" />
-                  Se registrará automáticamente un ingreso de {formatearMoneda(parseFloat(formulario_cita.monto_esperado))} vinculado a este plan
+                  El backend registrará automáticamente el ingreso de {formatearMoneda(parseFloat(formulario_cita.monto_esperado))} vinculado a este plan
                 </p>
               </div>
             )}
@@ -1310,6 +1282,76 @@ export default function Tratamientos() {
             >
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo_edicion_cita ? 'Actualizar' : 'Agregar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogo_confirmar_eliminar_abierto} onOpenChange={setDialogoConfirmarEliminarAbierto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Eliminación</DialogTitle>
+            <DialogDescription>
+              {cita_a_eliminar 
+                ? `¿Estás seguro de que deseas eliminar esta cita del plan?`
+                : tratamiento_seleccionado 
+                ? `¿Estás seguro de que deseas eliminar esta plantilla de tratamiento?`
+                : `¿Estás seguro de que deseas eliminar este elemento?`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {cita_a_eliminar && (
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+              <p className="font-semibold text-foreground">{cita_a_eliminar.descripcion}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatearFechaHora(cita_a_eliminar.fecha)}
+              </p>
+              <Badge className={`${obtenerColorEstado(cita_a_eliminar.estado_pago)} text-white`}>
+                {obtenerEtiquetaEstado(cita_a_eliminar.estado_pago)}
+              </Badge>
+            </div>
+          )}
+
+          {tratamiento_seleccionado && !cita_a_eliminar && (
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
+              <p className="font-semibold text-foreground">{tratamiento_seleccionado.nombre}</p>
+              <p className="text-sm text-muted-foreground">
+                {tratamiento_seleccionado.numero_citas} citas - {formatearMoneda(tratamiento_seleccionado.costo_total)}
+              </p>
+            </div>
+          )}
+
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogoConfirmarEliminarAbierto(false);
+                setCitaAEliminar(null);
+                setTratamientoSeleccionado(null);
+              }}
+              className="hover:scale-105 transition-all duration-200"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (cita_a_eliminar) {
+                  confirmarEliminarCita();
+                } else if (tratamiento_seleccionado) {
+                  confirmarEliminarPlantilla();
+                }
+              }}
+              className="hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-105 transition-all duration-200"
+            >
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
