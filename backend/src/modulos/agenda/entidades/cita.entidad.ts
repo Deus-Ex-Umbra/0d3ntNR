@@ -13,10 +13,10 @@ export class Cita {
   @Column()
   descripcion: string;
 
-  @Column({ default: 'pendiente' })
+  @Column({ nullable: true })
   estado_pago: string;
 
-  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
   monto_esperado: number;
 
   @ManyToOne(() => Paciente, { nullable: true, onDelete: 'SET NULL' })

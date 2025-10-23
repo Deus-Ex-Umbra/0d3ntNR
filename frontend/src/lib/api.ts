@@ -166,6 +166,10 @@ export const agendaApi = {
     const respuesta = await api.get(`/agenda?mes=${mes}&ano=${ano}`);
     return respuesta.data;
   },
+  obtenerCitasSinPagar: async () => {
+    const respuesta = await api.get('/agenda/sin-pagar');
+    return respuesta.data;
+  },
   actualizar: async (id: number, datos: any) => {
     const respuesta = await api.put(`/agenda/${id}`, datos);
     return respuesta.data;
@@ -203,11 +207,11 @@ export const asistenteApi = {
 };
 
 export const finanzasApi = {
-  registrarEgreso: async (datos: { concepto: string; fecha: Date; monto: number; cita_id?: number }) => {
+  registrarEgreso: async (datos: { concepto: string; fecha: Date; monto: number }) => {
     const respuesta = await api.post('/finanzas/egresos', datos);
     return respuesta.data;
   },
-  actualizarEgreso: async (id: number, datos: { concepto?: string; fecha?: Date; monto?: number; cita_id?: number }) => {
+  actualizarEgreso: async (id: number, datos: { concepto?: string; fecha?: Date; monto?: number }) => {
     const respuesta = await api.put(`/finanzas/egresos/${id}`, datos);
     return respuesta.data;
   },
@@ -215,7 +219,7 @@ export const finanzasApi = {
     const respuesta = await api.delete(`/finanzas/egresos/${id}`);
     return respuesta.data;
   },
-  registrarPago: async (datos: { plan_tratamiento_id?: number; cita_id?: number; fecha: Date; monto: number; concepto?: string }) => {
+  registrarPago: async (datos: { cita_id: number; fecha: Date; monto: number; concepto?: string }) => {
     const respuesta = await api.post('/finanzas/pagos', datos);
     return respuesta.data;
   },
@@ -233,6 +237,14 @@ export const finanzasApi = {
     if (fecha_fin) params.append('fecha_fin', fecha_fin);
     
     const respuesta = await api.get(`/finanzas/reporte?${params.toString()}`);
+    return respuesta.data;
+  },
+  obtenerDatosGrafico: async (tipo: 'dia' | 'mes' | 'ano', fecha_referencia?: string) => {
+    const params = new URLSearchParams();
+    params.append('tipo', tipo);
+    if (fecha_referencia) params.append('fecha_referencia', fecha_referencia);
+    
+    const respuesta = await api.get(`/finanzas/grafico?${params.toString()}`);
     return respuesta.data;
   },
 };

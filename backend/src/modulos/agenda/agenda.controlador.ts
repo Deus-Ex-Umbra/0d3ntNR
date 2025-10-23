@@ -24,6 +24,11 @@ export class AgendaControlador {
     return this.agenda_servicio.obtenerCitasPorMes(+mes, +ano);
   }
 
+  @Get('sin-pagar')
+  obtenerCitasSinPagar() {
+    return this.agenda_servicio.obtenerCitasSinPagar();
+  }
+
   @Put(':id')
   actualizar(@Param('id') id: string, @Body() actualizar_cita_dto: ActualizarCitaDto) {
     return this.agenda_servicio.actualizar(+id, actualizar_cita_dto);

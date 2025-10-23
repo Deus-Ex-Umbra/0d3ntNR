@@ -50,4 +50,14 @@ export class FinanzasControlador {
   obtenerReporte(@Query('fecha_inicio') fecha_inicio?: string, @Query('fecha_fin') fecha_fin?: string) {
     return this.finanzas_servicio.generarReporte(fecha_inicio, fecha_fin);
   }
+
+  @Get('grafico')
+  @ApiQuery({ name: 'tipo', required: true, enum: ['dia', 'mes', 'ano'] })
+  @ApiQuery({ name: 'fecha_referencia', required: false, type: String })
+  obtenerDatosGrafico(
+    @Query('tipo') tipo: 'dia' | 'mes' | 'ano',
+    @Query('fecha_referencia') fecha_referencia?: string
+  ) {
+    return this.finanzas_servicio.obtenerDatosGrafico(tipo, fecha_referencia);
+  }
 }

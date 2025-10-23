@@ -1,5 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-import { Cita } from '../../agenda/entidades/cita.entidad';
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity()
 export class Egreso {
@@ -14,7 +13,4 @@ export class Egreso {
 
   @Column('decimal', { precision: 10, scale: 2 })
   monto: number;
-
-  @ManyToOne(() => Cita, { nullable: true, onDelete: 'SET NULL' })
-  cita: Cita;
 }

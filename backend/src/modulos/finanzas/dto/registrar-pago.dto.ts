@@ -3,15 +3,9 @@ import { IsInt, IsNumber, Min, IsDate, IsOptional, IsString } from 'class-valida
 import { Type } from 'class-transformer';
 
 export class RegistrarPagoDto {
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({ description: 'ID de la cita a la que se asocia el pago' })
   @IsInt()
-  plan_tratamiento_id?: number;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsInt()
-  cita_id?: number;
+  cita_id: number;
   
   @ApiProperty()
   @Type(() => Date)

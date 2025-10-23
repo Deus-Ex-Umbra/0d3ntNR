@@ -8,7 +8,6 @@ import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { ActualizarPagoDto } from './dto/actualizar-pago.dto';
 import { ActualizarEgresoDto } from './dto/actualizar-egreso.dto';
 import { PlanesTratamientoServicio } from '../tratamientos/planes-tratamiento.servicio';
-import { AgendaServicio } from '../agenda/agenda.servicio';
 import { Cita } from '../agenda/entidades/cita.entidad';
 
 @Injectable()
@@ -22,75 +21,23 @@ export class FinanzasServicio {
     private readonly cita_repositorio: Repository<Cita>,
     @Inject(forwardRef(() => PlanesTratamientoServicio))
     private readonly planes_servicio: PlanesTratamientoServicio,
-    @Inject(forwardRef(() => AgendaServicio))
-    private readonly agenda_servicio: AgendaServicio,
   ) {}
 
   async registrarEgreso(registrar_egreso_dto: RegistrarEgresoDto): Promise<Egreso> {
-    if (registrar_egreso_dto.cita_id) {
-      const cita = await this.cita_repositorio.findOne({
-        where: { id: registrar_egreso_dto.cita_id },
-        relations: ['plan_tratamiento'],
-      });
-
-      if (!cita) {
-        throw new NotFoundException('La cita especificada no existe');
-      }
-
-      if (cita.plan_tratamiento) {
-        throw new BadRequestException(
-          'No se puede asociar un egreso a una cita que está vinculada a un plan de tratamiento'
-        );
-      }
-
-      await this.cita_repositorio.update(cita.id, { estado_pago: 'cancelado' });
-    }
-
     const nuevo_egreso = this.egreso_repositorio.create({
       concepto: registrar_egreso_dto.concepto,
       fecha: registrar_egreso_dto.fecha,
       monto: registrar_egreso_dto.monto,
-      cita: registrar_egreso_dto.cita_id ? { id: registrar_egreso_dto.cita_id } as any : null,
     });
 
     return this.egreso_repositorio.save(nuevo_egreso);
   }
 
   async actualizarEgreso(id: number, actualizar_egreso_dto: ActualizarEgresoDto): Promise<Egreso> {
-    const egreso_existente = await this.egreso_repositorio.findOne({
-      where: { id },
-      relations: ['cita', 'cita.plan_tratamiento'],
-    });
+    const egreso_existente = await this.egreso_repositorio.findOne({ where: { id } });
 
     if (!egreso_existente) {
       throw new NotFoundException('El egreso especificado no existe');
-    }
-
-    if (actualizar_egreso_dto.cita_id !== undefined) {
-      if (actualizar_egreso_dto.cita_id) {
-        const cita = await this.cita_repositorio.findOne({
-          where: { id: actualizar_egreso_dto.cita_id },
-          relations: ['plan_tratamiento'],
-        });
-
-        if (!cita) {
-          throw new NotFoundException('La cita especificada no existe');
-        }
-
-        if (cita.plan_tratamiento) {
-          throw new BadRequestException(
-            'No se puede asociar un egreso a una cita que está vinculada a un plan de tratamiento'
-          );
-        }
-
-        if (egreso_existente.cita && egreso_existente.cita.id !== actualizar_egreso_dto.cita_id) {
-          await this.cita_repositorio.update(egreso_existente.cita.id, { estado_pago: 'pendiente' });
-        }
-
-        await this.cita_repositorio.update(cita.id, { estado_pago: 'cancelado' });
-      } else if (egreso_existente.cita) {
-        await this.cita_repositorio.update(egreso_existente.cita.id, { estado_pago: 'pendiente' });
-      }
     }
 
     const datos_actualizacion: any = {};
@@ -103,18 +50,10 @@ export class FinanzasServicio {
     if (actualizar_egreso_dto.monto !== undefined) {
       datos_actualizacion.monto = actualizar_egreso_dto.monto;
     }
-    if (actualizar_egreso_dto.cita_id !== undefined) {
-      datos_actualizacion.cita = actualizar_egreso_dto.cita_id
-        ? { id: actualizar_egreso_dto.cita_id }
-        : null;
-    }
 
     await this.egreso_repositorio.update(id, datos_actualizacion);
 
-    const updatedEgreso = await this.egreso_repositorio.findOne({
-      where: { id },
-      relations: ['cita'],
-    });
+    const updatedEgreso = await this.egreso_repositorio.findOne({ where: { id } });
 
     if (!updatedEgreso) {
       throw new Error('Unexpected error: Updated egreso not found');
@@ -124,63 +63,52 @@ export class FinanzasServicio {
   }
 
   async eliminarEgreso(id: number): Promise<void> {
-    const egreso = await this.egreso_repositorio.findOne({
-      where: { id },
-      relations: ['cita'],
-    });
+    const egreso = await this.egreso_repositorio.findOne({ where: { id } });
 
     if (!egreso) {
       throw new NotFoundException('El egreso especificado no existe');
-    }
-
-    if (egreso.cita) {
-      await this.cita_repositorio.update(egreso.cita.id, { estado_pago: 'pendiente' });
     }
 
     await this.egreso_repositorio.remove(egreso);
   }
 
   async registrarPago(registrar_pago_dto: RegistrarPagoDto): Promise<Pago> {
-    if (registrar_pago_dto.cita_id) {
-      const cita = await this.cita_repositorio.findOne({
-        where: { id: registrar_pago_dto.cita_id },
-        relations: ['plan_tratamiento'],
-      });
+    const cita = await this.cita_repositorio.findOne({
+      where: { id: registrar_pago_dto.cita_id },
+      relations: ['paciente', 'plan_tratamiento'],
+    });
 
-      if (!cita) {
-        throw new NotFoundException('La cita especificada no existe');
-      }
-
-      const pago_existente = await this.pago_repositorio.findOne({
-        where: { cita: { id: registrar_pago_dto.cita_id } },
-      });
-
-      if (pago_existente) {
-        throw new ConflictException('Esta cita ya tiene un pago asociado');
-      }
-
-      await this.cita_repositorio.update(cita.id, { estado_pago: 'pagado' });
-
-      if (!registrar_pago_dto.plan_tratamiento_id && cita.plan_tratamiento) {
-        registrar_pago_dto.plan_tratamiento_id = cita.plan_tratamiento.id;
-      }
+    if (!cita) {
+      throw new NotFoundException('La cita especificada no existe');
     }
+
+    if (!cita.paciente) {
+      throw new BadRequestException('No se puede registrar un pago para una cita sin paciente');
+    }
+
+    const pago_existente = await this.pago_repositorio.findOne({
+      where: { cita: { id: registrar_pago_dto.cita_id } },
+    });
+
+    if (pago_existente) {
+      throw new ConflictException('Esta cita ya tiene un pago asociado');
+    }
+
+    await this.cita_repositorio.update(cita.id, { estado_pago: 'pagado' });
 
     const nuevo_pago = this.pago_repositorio.create({
       fecha: registrar_pago_dto.fecha,
       monto: registrar_pago_dto.monto,
-      concepto: registrar_pago_dto.concepto || 'Pago de tratamiento',
-      plan_tratamiento: registrar_pago_dto.plan_tratamiento_id
-        ? { id: registrar_pago_dto.plan_tratamiento_id } as any
-        : null,
-      cita: registrar_pago_dto.cita_id ? { id: registrar_pago_dto.cita_id } as any : null,
+      concepto: registrar_pago_dto.concepto || 'Pago de cita',
+      plan_tratamiento: cita.plan_tratamiento || null,
+      cita: { id: registrar_pago_dto.cita_id } as any,
     });
 
     const pago_guardado = await this.pago_repositorio.save(nuevo_pago);
 
-    if (registrar_pago_dto.plan_tratamiento_id) {
+    if (cita.plan_tratamiento) {
       await this.planes_servicio.registrarAbono(
-        registrar_pago_dto.plan_tratamiento_id,
+        cita.plan_tratamiento.id,
         registrar_pago_dto.monto
       );
     }
@@ -282,11 +210,10 @@ export class FinanzasServicio {
 
     const pagos = await this.pago_repositorio.find({
       where: { fecha: Between(fecha_inicio, fecha_fin) },
-      relations: ['plan_tratamiento', 'plan_tratamiento.paciente', 'cita'],
+      relations: ['plan_tratamiento', 'plan_tratamiento.paciente', 'cita', 'cita.paciente'],
     });
     const egresos = await this.egreso_repositorio.find({
       where: { fecha: Between(fecha_inicio, fecha_fin) },
-      relations: ['cita'],
     });
 
     const total_ingresos = pagos.reduce((sum, p) => sum + Number(p.monto), 0);
@@ -299,11 +226,9 @@ export class FinanzasServicio {
         tipo: 'ingreso' as const,
         fecha: p.fecha,
         monto: Number(p.monto),
-        concepto:
-          p.concepto ||
-          (p.plan_tratamiento?.paciente
-            ? `Pago de ${p.plan_tratamiento.paciente.nombre} ${p.plan_tratamiento.paciente.apellidos}`
-            : 'Pago general'),
+        concepto: p.concepto || (p.cita?.paciente 
+          ? `Pago de ${p.cita.paciente.nombre} ${p.cita.paciente.apellidos}`
+          : 'Pago de cita'),
         cita_id: p.cita?.id,
         plan_tratamiento_id: p.plan_tratamiento?.id,
       })),
@@ -313,7 +238,6 @@ export class FinanzasServicio {
         fecha: e.fecha,
         monto: Number(e.monto),
         concepto: e.concepto,
-        cita_id: e.cita?.id,
       })),
     ].sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
 
@@ -323,5 +247,111 @@ export class FinanzasServicio {
       balance,
       movimientos,
     };
+  }
+
+  async obtenerDatosGrafico(tipo: 'dia' | 'mes' | 'ano', fecha_referencia?: string) {
+    const fecha_ref = fecha_referencia ? new Date(fecha_referencia) : new Date();
+    let fecha_inicio: Date;
+    let fecha_fin: Date;
+    let formato_agrupacion: string;
+
+    switch (tipo) {
+      case 'dia':
+        fecha_inicio = new Date(fecha_ref);
+        fecha_inicio.setHours(0, 0, 0, 0);
+        fecha_fin = new Date(fecha_ref);
+        fecha_fin.setHours(23, 59, 59, 999);
+        formato_agrupacion = 'hora';
+        break;
+      case 'mes':
+        fecha_inicio = new Date(fecha_ref.getFullYear(), fecha_ref.getMonth(), 1);
+        fecha_fin = new Date(fecha_ref.getFullYear(), fecha_ref.getMonth() + 1, 0, 23, 59, 59, 999);
+        formato_agrupacion = 'dia';
+        break;
+      case 'ano':
+        fecha_inicio = new Date(fecha_ref.getFullYear(), 0, 1);
+        fecha_fin = new Date(fecha_ref.getFullYear(), 11, 31, 23, 59, 59, 999);
+        formato_agrupacion = 'semana';
+        break;
+    }
+
+    const pagos = await this.pago_repositorio.find({
+      where: { fecha: Between(fecha_inicio, fecha_fin) },
+    });
+
+    const egresos = await this.egreso_repositorio.find({
+      where: { fecha: Between(fecha_inicio, fecha_fin) },
+    });
+
+    const datos_agrupados = this.agruparDatos(pagos, egresos, tipo, fecha_inicio, fecha_fin);
+
+    return datos_agrupados;
+  }
+
+  private agruparDatos(pagos: Pago[], egresos: Egreso[], tipo: string, fecha_inicio: Date, fecha_fin: Date) {
+    const datos: any[] = [];
+
+    if (tipo === 'dia') {
+      for (let hora = 0; hora < 24; hora++) {
+        const ingresos = pagos
+          .filter(p => new Date(p.fecha).getHours() === hora)
+          .reduce((sum, p) => sum + Number(p.monto), 0);
+        
+        const egresos_monto = egresos
+          .filter(e => new Date(e.fecha).getHours() === hora)
+          .reduce((sum, e) => sum + Number(e.monto), 0);
+
+        datos.push({
+          periodo: `${hora.toString().padStart(2, '0')}:00`,
+          ingresos,
+          egresos: egresos_monto,
+        });
+      }
+    } else if (tipo === 'mes') {
+      const dias_en_mes = new Date(fecha_fin.getFullYear(), fecha_fin.getMonth() + 1, 0).getDate();
+      
+      for (let dia = 1; dia <= dias_en_mes; dia++) {
+        const ingresos = pagos
+          .filter(p => new Date(p.fecha).getDate() === dia)
+          .reduce((sum, p) => sum + Number(p.monto), 0);
+        
+        const egresos_monto = egresos
+          .filter(e => new Date(e.fecha).getDate() === dia)
+          .reduce((sum, e) => sum + Number(e.monto), 0);
+
+        datos.push({
+          periodo: dia.toString(),
+          ingresos,
+          egresos: egresos_monto,
+        });
+      }
+    } else if (tipo === 'ano') {
+      for (let semana = 1; semana <= 52; semana++) {
+        const inicio_semana = new Date(fecha_inicio.getFullYear(), 0, 1 + (semana - 1) * 7);
+        const fin_semana = new Date(fecha_inicio.getFullYear(), 0, 1 + semana * 7);
+
+        const ingresos = pagos
+          .filter(p => {
+            const fecha_pago = new Date(p.fecha);
+            return fecha_pago >= inicio_semana && fecha_pago < fin_semana;
+          })
+          .reduce((sum, p) => sum + Number(p.monto), 0);
+        
+        const egresos_monto = egresos
+          .filter(e => {
+            const fecha_egreso = new Date(e.fecha);
+            return fecha_egreso >= inicio_semana && fecha_egreso < fin_semana;
+          })
+          .reduce((sum, e) => sum + Number(e.monto), 0);
+
+        datos.push({
+          periodo: `S${semana}`,
+          ingresos,
+          egresos: egresos_monto,
+        });
+      }
+    }
+
+    return datos;
   }
 }

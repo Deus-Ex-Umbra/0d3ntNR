@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Cita } from './entidades/cita.entidad';
@@ -17,12 +17,20 @@ export class AgendaServicio {
   ) {}
 
   async crear(crear_cita_dto: CrearCitaDto): Promise<Cita> {
-    const { paciente_id, plan_tratamiento_id, ...cita_data } = crear_cita_dto;
+    const { paciente_id, plan_tratamiento_id, estado_pago, monto_esperado, ...cita_data } = crear_cita_dto;
+    
+    if (!paciente_id && (estado_pago || monto_esperado)) {
+      throw new BadRequestException('Las citas sin paciente no pueden tener estado de pago ni monto esperado');
+    }
+
     const nueva_cita = this.cita_repositorio.create(cita_data);
 
     if (paciente_id) {
       nueva_cita.paciente = { id: paciente_id } as Paciente;
+      nueva_cita.estado_pago = estado_pago || 'pendiente';
+      nueva_cita.monto_esperado = monto_esperado || 0;
     }
+
     if (plan_tratamiento_id) {
       nueva_cita.plan_tratamiento = { id: plan_tratamiento_id } as PlanTratamiento;
     }
@@ -55,14 +63,43 @@ export class AgendaServicio {
       throw new NotFoundException(`Cita con ID "${id}" no encontrada.`);
     }
 
+    if (!actualizar_cita_dto.paciente_id && cita_actual.paciente === null) {
+      if (actualizar_cita_dto.estado_pago || actualizar_cita_dto.monto_esperado) {
+        throw new BadRequestException('Las citas sin paciente no pueden tener estado de pago ni monto esperado');
+      }
+    }
+
     const estado_anterior = cita_actual.estado_pago;
-    const datos_actualizar: Partial<Cita> = { ...actualizar_cita_dto };
+    const datos_actualizar: Partial<Cita> = {};
+
+    if (actualizar_cita_dto.fecha !== undefined) {
+      datos_actualizar.fecha = actualizar_cita_dto.fecha;
+    }
+    if (actualizar_cita_dto.descripcion !== undefined) {
+      datos_actualizar.descripcion = actualizar_cita_dto.descripcion;
+    }
 
     if (actualizar_cita_dto.paciente_id !== undefined) {
-      datos_actualizar.paciente = actualizar_cita_dto.paciente_id ? { id: actualizar_cita_dto.paciente_id } as Paciente : undefined;
+      datos_actualizar.paciente = actualizar_cita_dto.paciente_id ? { id: actualizar_cita_dto.paciente_id } as Paciente : null;
+      
+      if (actualizar_cita_dto.paciente_id) {
+        datos_actualizar.estado_pago = actualizar_cita_dto.estado_pago || 'pendiente';
+        datos_actualizar.monto_esperado = actualizar_cita_dto.monto_esperado || 0;
+      } else {
+        datos_actualizar.estado_pago = null;
+        datos_actualizar.monto_esperado = null;
+      }
+    } else if (cita_actual.paciente) {
+      if (actualizar_cita_dto.estado_pago !== undefined) {
+        datos_actualizar.estado_pago = actualizar_cita_dto.estado_pago;
+      }
+      if (actualizar_cita_dto.monto_esperado !== undefined) {
+        datos_actualizar.monto_esperado = actualizar_cita_dto.monto_esperado;
+      }
     }
+
     if (actualizar_cita_dto.plan_tratamiento_id !== undefined) {
-      datos_actualizar.plan_tratamiento = actualizar_cita_dto.plan_tratamiento_id ? { id: actualizar_cita_dto.plan_tratamiento_id } as PlanTratamiento : undefined;
+      datos_actualizar.plan_tratamiento = actualizar_cita_dto.plan_tratamiento_id ? { id: actualizar_cita_dto.plan_tratamiento_id } as PlanTratamiento : null;
     }
 
     const cita = await this.cita_repositorio.preload({
@@ -76,15 +113,14 @@ export class AgendaServicio {
 
     const cita_guardada = await this.cita_repositorio.save(cita);
 
-    const nuevo_estado = actualizar_cita_dto.estado_pago || estado_anterior;
+    const nuevo_estado = cita_guardada.estado_pago;
     const cambio_a_pagado = estado_anterior !== 'pagado' && nuevo_estado === 'pagado';
     const cambio_desde_pagado = estado_anterior === 'pagado' && nuevo_estado !== 'pagado';
-    const tiene_plan_tratamiento = cita_actual.plan_tratamiento && cita_actual.plan_tratamiento.id;
+    const tiene_paciente = cita_guardada.paciente !== null;
     const tiene_monto = cita_guardada.monto_esperado && cita_guardada.monto_esperado > 0;
 
-    if (cambio_a_pagado && tiene_plan_tratamiento && tiene_monto) {
+    if (cambio_a_pagado && tiene_paciente && tiene_monto) {
       await this.finanzas_servicio.registrarPago({
-        plan_tratamiento_id: cita_actual.plan_tratamiento.id,
         cita_id: id,
         fecha: new Date(),
         monto: Number(cita_guardada.monto_esperado),
@@ -92,7 +128,7 @@ export class AgendaServicio {
       });
     }
 
-    if (cambio_desde_pagado && tiene_plan_tratamiento) {
+    if (cambio_desde_pagado && tiene_paciente) {
       await this.finanzas_servicio.eliminarPagosPorCita(id);
     }
 
@@ -113,5 +149,16 @@ export class AgendaServicio {
     if (resultado.affected === 0) {
       throw new NotFoundException(`Cita con ID "${id}" no encontrada.`);
     }
+  }
+
+  async obtenerCitasSinPagar(): Promise<Cita[]> {
+    return this.cita_repositorio.find({
+      where: [
+        { estado_pago: 'pendiente' },
+        { estado_pago: 'cancelado' }
+      ],
+      relations: ['paciente', 'plan_tratamiento'],
+      order: { fecha: 'DESC' }
+    });
   }
 }
