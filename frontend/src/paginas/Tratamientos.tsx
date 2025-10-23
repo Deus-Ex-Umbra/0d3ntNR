@@ -45,6 +45,7 @@ import {
   Clock,
   User,
   CheckCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { tratamientosApi, planesTratamientoApi, pacientesApi, agendaApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
@@ -53,6 +54,7 @@ import { Badge } from "@/componentes/ui/badge";
 import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { TimePicker } from '@/componentes/ui/time-picker';
 
 interface Tratamiento {
   id: number;
@@ -131,6 +133,7 @@ export default function Tratamientos() {
     paciente_id: "",
     tratamiento_id: "",
     fecha_inicio: "",
+    hora_inicio: "09:00",
   });
 
   const [formulario_cita, setFormularioCita] = useState({
@@ -350,6 +353,7 @@ export default function Tratamientos() {
       paciente_id: "",
       tratamiento_id: tratamiento.id.toString(),
       fecha_inicio: new Date().toISOString().split("T")[0],
+      hora_inicio: "09:00",
     });
     setTratamientoSeleccionado(tratamiento);
     setDialogoAsignarAbierto(true);
@@ -359,7 +363,8 @@ export default function Tratamientos() {
     if (
       !formulario_asignar.paciente_id ||
       !formulario_asignar.tratamiento_id ||
-      !formulario_asignar.fecha_inicio
+      !formulario_asignar.fecha_inicio ||
+      !formulario_asignar.hora_inicio
     ) {
       toast({
         title: "Error",
@@ -375,6 +380,7 @@ export default function Tratamientos() {
         paciente_id: parseInt(formulario_asignar.paciente_id),
         tratamiento_id: parseInt(formulario_asignar.tratamiento_id),
         fecha_inicio: formulario_asignar.fecha_inicio,
+        hora_inicio: formulario_asignar.hora_inicio,
       });
       toast({
         title: "Éxito",
@@ -384,11 +390,21 @@ export default function Tratamientos() {
       cargarPlanes();
     } catch (error: any) {
       console.error("Error al asignar tratamiento:", error);
+      
+      const mensaje_error = error.response?.data?.message || "No se pudo asignar el tratamiento";
+      
       toast({
-        title: "Error",
-        description:
-          error.response?.data?.message || "No se pudo asignar el tratamiento",
+        title: "Error - Conflicto de Horarios",
+        description: (
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{mensaje_error}</p>
+            </div>
+          </div>
+        ),
         variant: "destructive",
+        duration: 10000,
       });
     } finally {
       setGuardando(false);
@@ -462,10 +478,21 @@ export default function Tratamientos() {
       await recargarPlanSeleccionado();
     } catch (error: any) {
       console.error("Error al guardar cita:", error);
+      
+      const mensaje_error = error.response?.data?.message || "No se pudo guardar la cita";
+      
       toast({
-        title: "Error",
-        description: error.response?.data?.message || "No se pudo guardar la cita",
+        title: "Error - Conflicto de Horarios",
+        description: (
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{mensaje_error}</p>
+            </div>
+          </div>
+        ),
         variant: "destructive",
+        duration: 10000,
       });
     } finally {
       setGuardando(false);
@@ -1092,16 +1119,30 @@ export default function Tratamientos() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fecha_inicio">Fecha de Inicio *</Label>
-              <DatePicker
-                valor={formulario_asignar.fecha_inicio ? new Date(formulario_asignar.fecha_inicio) : undefined}
-                onChange={(fecha) => fecha && setFormularioAsignar({
-                  ...formulario_asignar,
-                  fecha_inicio: fecha.toISOString().split('T')[0],
-                })}
-                placeholder="Selecciona fecha de inicio"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fecha_inicio">Fecha de Inicio *</Label>
+                <DatePicker
+                  valor={formulario_asignar.fecha_inicio ? new Date(formulario_asignar.fecha_inicio) : undefined}
+                  onChange={(fecha) => fecha && setFormularioAsignar({
+                    ...formulario_asignar,
+                    fecha_inicio: fecha.toISOString().split('T')[0],
+                  })}
+                  placeholder="Selecciona fecha de inicio"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="hora_inicio">Hora de las Citas *</Label>
+                <TimePicker
+                  valor={formulario_asignar.hora_inicio}
+                  onChange={(hora) => setFormularioAsignar({
+                    ...formulario_asignar,
+                    hora_inicio: hora,
+                  })}
+                  placeholder="Selecciona hora"
+                />
+              </div>
             </div>
 
             {tratamiento_seleccionado && (
@@ -1126,6 +1167,13 @@ export default function Tratamientos() {
                 </div>
               </div>
             )}
+
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                Todas las citas se programarán a las {formulario_asignar.hora_inicio}. El sistema validará automáticamente que no haya conflictos de horario.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1395,6 +1443,13 @@ export default function Tratamientos() {
                 </p>
               </div>
             )}
+
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                El sistema validará automáticamente que no haya conflictos de horario con otras citas (±30 minutos).
+              </p>
+            </div>
           </div>
 
           <DialogFooter>

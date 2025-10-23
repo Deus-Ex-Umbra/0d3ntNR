@@ -143,9 +143,9 @@ export const tratamientosApi = {
 };
 
 export const planesTratamientoApi = {
-  asignar: async (datos: { paciente_id: number; tratamiento_id: number; fecha_inicio: string }) => {
-    const respuesta = await api.post('/planes-tratamiento', datos);
-    return respuesta.data;
+  asignar: async (datos: { paciente_id: number; tratamiento_id: number; fecha_inicio: string; hora_inicio: string }) => {
+  const respuesta = await api.post('/planes-tratamiento', datos);
+  return respuesta.data;
   },
   obtenerTodos: async () => {
     const respuesta = await api.get('/planes-tratamiento');

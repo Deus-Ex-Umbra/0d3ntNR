@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, Inject, BadRequestException, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, BadRequestException, forwardRef, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, FindOptionsWhere } from 'typeorm';
+import { Repository, Between, FindOptionsWhere, LessThanOrEqual, MoreThanOrEqual, Not } from 'typeorm';
 import { Cita } from './entidades/cita.entidad';
 import { CrearCitaDto } from './dto/crear-cita.dto';
 import { ActualizarCitaDto } from './dto/actualizar-cita.dto';
@@ -17,11 +17,60 @@ export class AgendaServicio {
     private readonly finanzas_servicio: FinanzasServicio,
   ) {}
 
+  async validarDisponibilidad(fecha: Date, cita_id_excluir?: number): Promise<{ disponible: boolean; citas_conflicto: Cita[] }> {
+    const margen_minutos = 30;
+    const fecha_inicio = new Date(fecha);
+    fecha_inicio.setMinutes(fecha_inicio.getMinutes() - margen_minutos);
+    
+    const fecha_fin = new Date(fecha);
+    fecha_fin.setMinutes(fecha_fin.getMinutes() + margen_minutos);
+
+    const condiciones: any = {
+      fecha: Between(fecha_inicio, fecha_fin)
+    };
+
+    if (cita_id_excluir) {
+      condiciones.id = Not(cita_id_excluir);
+    }
+
+    const citas_conflicto = await this.cita_repositorio.find({
+      where: condiciones,
+      relations: ['paciente', 'plan_tratamiento'],
+    });
+
+    return {
+      disponible: citas_conflicto.length === 0,
+      citas_conflicto,
+    };
+  }
+
   async crear(crear_cita_dto: CrearCitaDto): Promise<Cita> {
     const { paciente_id, plan_tratamiento_id, estado_pago, monto_esperado, ...cita_data } = crear_cita_dto;
     
     if (!paciente_id && (estado_pago || monto_esperado)) {
       throw new BadRequestException('Las citas sin paciente no pueden tener estado de pago ni monto esperado');
+    }
+
+    const validacion = await this.validarDisponibilidad(cita_data.fecha);
+    
+    if (!validacion.disponible) {
+      const detalles_conflictos = validacion.citas_conflicto.map(cita => {
+        const fecha_formateada = new Date(cita.fecha).toLocaleString('es-BO', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const descripcion = cita.paciente 
+          ? `${cita.paciente.nombre} ${cita.paciente.apellidos} - ${cita.descripcion}`
+          : cita.descripcion;
+        return `${fecha_formateada}: ${descripcion}`;
+      }).join('; ');
+
+      throw new ConflictException(
+        `Ya existe${validacion.citas_conflicto.length > 1 ? 'n' : ''} ${validacion.citas_conflicto.length} cita${validacion.citas_conflicto.length > 1 ? 's' : ''} programada${validacion.citas_conflicto.length > 1 ? 's' : ''} en ese horario (±30 min): ${detalles_conflictos}`
+      );
     }
 
     const nueva_cita = this.cita_repositorio.create(cita_data);
@@ -67,6 +116,30 @@ export class AgendaServicio {
     if (!actualizar_cita_dto.paciente_id && cita_actual.paciente === null) {
       if (actualizar_cita_dto.estado_pago || actualizar_cita_dto.monto_esperado) {
         throw new BadRequestException('Las citas sin paciente no pueden tener estado de pago ni monto esperado');
+      }
+    }
+
+    if (actualizar_cita_dto.fecha !== undefined) {
+      const validacion = await this.validarDisponibilidad(actualizar_cita_dto.fecha, id);
+      
+      if (!validacion.disponible) {
+        const detalles_conflictos = validacion.citas_conflicto.map(cita => {
+          const fecha_formateada = new Date(cita.fecha).toLocaleString('es-BO', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          const descripcion = cita.paciente 
+            ? `${cita.paciente.nombre} ${cita.paciente.apellidos} - ${cita.descripcion}`
+            : cita.descripcion;
+          return `${fecha_formateada}: ${descripcion}`;
+        }).join('; ');
+
+        throw new ConflictException(
+          `Ya existe${validacion.citas_conflicto.length > 1 ? 'n' : ''} ${validacion.citas_conflicto.length} cita${validacion.citas_conflicto.length > 1 ? 's' : ''} programada${validacion.citas_conflicto.length > 1 ? 's' : ''} en ese horario (±30 min): ${detalles_conflictos}`
+        );
       }
     }
 

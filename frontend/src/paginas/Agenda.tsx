@@ -6,7 +6,7 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/componentes/ui/dialog';
-import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Loader2, AlertCircle, Clock, ChevronLeft, ChevronRight, DollarSign, Filter, X, AlertTriangle } from 'lucide-react';
 import { agendaApi, pacientesApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -248,13 +248,24 @@ export default function Agenda() {
       setDialogoAbierto(false);
       cargarDatos();
     } catch (error: any) {
-      console.error('Error al guardar cita:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'No se pudo guardar la cita',
-        variant: 'destructive',
-      });
-    } finally {
+  console.error('Error al guardar cita:', error);
+  
+  const mensaje_error = error.response?.data?.message || 'No se pudo guardar la cita';
+  
+  toast({
+    title: 'Error - Conflicto de Horarios',
+    description: (
+      <div className="space-y-2">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          <p className="text-sm">{mensaje_error}</p>
+        </div>
+      </div>
+    ),
+    variant: 'destructive',
+    duration: 10000,
+  });
+}finally {
       setGuardando(false);
     }
   };
