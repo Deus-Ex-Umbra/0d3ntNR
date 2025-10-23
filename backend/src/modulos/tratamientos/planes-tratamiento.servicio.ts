@@ -35,9 +35,18 @@ export class PlanesTratamientoServicio {
     const fecha_actual = new Date(fecha_inicio);
     fecha_actual.setUTCHours(0, 0, 0, 0);
     const citas_promesas: Promise<Cita>[] = [];
+    
+    const intervalo_dias = tratamiento_plantilla.intervalo_dias || 0;
+    const intervalo_semanas = tratamiento_plantilla.intervalo_semanas || 0;
+    const intervalo_meses = tratamiento_plantilla.intervalo_meses || 0;
+    
     for (let i = 0; i < tratamiento_plantilla.numero_citas; i++) {
         const fecha_cita = new Date(fecha_actual);
-        fecha_cita.setDate(fecha_cita.getDate() + i * 7);
+        
+        fecha_cita.setMonth(fecha_cita.getMonth() + (i * intervalo_meses));
+        fecha_cita.setDate(fecha_cita.getDate() + (i * intervalo_semanas * 7));
+        fecha_cita.setDate(fecha_cita.getDate() + (i * intervalo_dias));
+        
         citas_promesas.push(
             this.agenda_servicio.crear({
                 paciente_id: paciente.id,

@@ -13,4 +13,13 @@ export class Tratamiento {
 
   @Column('decimal', { precision: 10, scale: 2 })
   costo_total: number;
+
+  @Column({ default: 0 })
+  intervalo_dias: number;
+
+  @Column({ default: 0 })
+  intervalo_semanas: number;
+
+  @Column({ default: 0 })
+  intervalo_meses: number;
 }

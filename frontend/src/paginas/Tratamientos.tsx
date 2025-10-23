@@ -57,6 +57,9 @@ interface Tratamiento {
   nombre: string;
   numero_citas: number;
   costo_total: number;
+  intervalo_dias: number;
+  intervalo_semanas: number;
+  intervalo_meses: number;
 }
 
 interface Paciente {
@@ -117,6 +120,9 @@ export default function Tratamientos() {
     nombre: "",
     numero_citas: "",
     costo_total: "",
+    intervalo_dias: "0",
+    intervalo_semanas: "0",
+    intervalo_meses: "0",
   });
 
   const [formulario_asignar, setFormularioAsignar] = useState({
@@ -201,6 +207,9 @@ export default function Tratamientos() {
       nombre: "",
       numero_citas: "",
       costo_total: "",
+      intervalo_dias: "0",
+      intervalo_semanas: "0",
+      intervalo_meses: "0",
     });
     setModoEdicion(false);
     setDialogoPlantillaAbierto(true);
@@ -211,6 +220,9 @@ export default function Tratamientos() {
       nombre: tratamiento.nombre,
       numero_citas: tratamiento.numero_citas.toString(),
       costo_total: tratamiento.costo_total.toString(),
+      intervalo_dias: (tratamiento.intervalo_dias || 0).toString(),
+      intervalo_semanas: (tratamiento.intervalo_semanas || 0).toString(),
+      intervalo_meses: (tratamiento.intervalo_meses || 0).toString(),
     });
     setTratamientoSeleccionado(tratamiento);
     setModoEdicion(true);
@@ -225,7 +237,7 @@ export default function Tratamientos() {
     ) {
       toast({
         title: "Error",
-        description: "Todos los campos son obligatorios",
+        description: "Nombre, número de citas y costo son obligatorios",
         variant: "destructive",
       });
       return;
@@ -233,19 +245,36 @@ export default function Tratamientos() {
 
     const numero_citas = parseInt(formulario_plantilla.numero_citas);
     const costo_total = parseFloat(formulario_plantilla.costo_total);
+    const intervalo_dias = parseInt(formulario_plantilla.intervalo_dias);
+    const intervalo_semanas = parseInt(formulario_plantilla.intervalo_semanas);
+    const intervalo_meses = parseInt(formulario_plantilla.intervalo_meses);
 
     if (
       isNaN(numero_citas) ||
       numero_citas <= 0 ||
       isNaN(costo_total) ||
-      costo_total <= 0
+      costo_total <= 0 ||
+      isNaN(intervalo_dias) ||
+      intervalo_dias < 0 ||
+      isNaN(intervalo_semanas) ||
+      intervalo_semanas < 0 ||
+      isNaN(intervalo_meses) ||
+      intervalo_meses < 0
     ) {
       toast({
         title: "Error",
-        description: "Los valores numéricos deben ser mayores a 0",
+        description: "Los valores numéricos deben ser válidos",
         variant: "destructive",
       });
       return;
+    }
+
+    if (intervalo_dias === 0 && intervalo_semanas === 0 && intervalo_meses === 0) {
+      toast({
+        title: "Advertencia",
+        description: "Al menos un intervalo debe ser mayor a 0, o todas las citas se programarán el mismo día",
+        variant: "destructive",
+      });
     }
 
     setGuardando(true);
@@ -254,6 +283,9 @@ export default function Tratamientos() {
         nombre: formulario_plantilla.nombre,
         numero_citas,
         costo_total,
+        intervalo_dias,
+        intervalo_semanas,
+        intervalo_meses,
       };
 
       if (modo_edicion && tratamiento_seleccionado) {
@@ -506,6 +538,30 @@ export default function Tratamientos() {
     return estado_encontrado?.etiqueta || estado;
   };
 
+  const obtenerTextoIntervalo = (tratamiento: Tratamiento): string => {
+    const dias = tratamiento.intervalo_dias || 0;
+    const semanas = tratamiento.intervalo_semanas || 0;
+    const meses = tratamiento.intervalo_meses || 0;
+    
+    const partes: string[] = [];
+    
+    if (meses > 0) {
+      partes.push(`${meses} mes${meses !== 1 ? 'es' : ''}`);
+    }
+    if (semanas > 0) {
+      partes.push(`${semanas} semana${semanas !== 1 ? 's' : ''}`);
+    }
+    if (dias > 0) {
+      partes.push(`${dias} día${dias !== 1 ? 's' : ''}`);
+    }
+    
+    if (partes.length === 0) {
+      return 'Sin intervalo (mismo día)';
+    }
+    
+    return `Cada ${partes.join(', ')}`;
+  };
+
   const opciones_pacientes: OpcionCombobox[] = [
     { valor: "todos", etiqueta: "Todos los pacientes" },
     ...pacientes.map(p => ({
@@ -623,6 +679,7 @@ export default function Tratamientos() {
                         <TableRow>
                           <TableHead>Nombre del Tratamiento</TableHead>
                           <TableHead>Número de Citas</TableHead>
+                          <TableHead>Intervalo</TableHead>
                           <TableHead>Costo Total</TableHead>
                           <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
@@ -640,6 +697,12 @@ export default function Tratamientos() {
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 {tratamiento.numero_citas} citas
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                {obtenerTextoIntervalo(tratamiento)}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -907,6 +970,74 @@ export default function Tratamientos() {
                 />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label>Intervalo entre Citas</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="intervalo_meses" className="text-xs text-muted-foreground">
+                    Meses
+                  </Label>
+                  <Input
+                    id="intervalo_meses"
+                    type="number"
+                    min="0"
+                    value={formulario_plantilla.intervalo_meses}
+                    onChange={(e) =>
+                      setFormularioPlantilla({
+                        ...formulario_plantilla,
+                        intervalo_meses: e.target.value,
+                      })
+                    }
+                    placeholder="0"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="intervalo_semanas" className="text-xs text-muted-foreground">
+                    Semanas
+                  </Label>
+                  <Input
+                    id="intervalo_semanas"
+                    type="number"
+                    min="0"
+                    value={formulario_plantilla.intervalo_semanas}
+                    onChange={(e) =>
+                      setFormularioPlantilla({
+                        ...formulario_plantilla,
+                        intervalo_semanas: e.target.value,
+                      })
+                    }
+                    placeholder="0"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="intervalo_dias" className="text-xs text-muted-foreground">
+                    Días
+                  </Label>
+                  <Input
+                    id="intervalo_dias"
+                    type="number"
+                    min="0"
+                    value={formulario_plantilla.intervalo_dias}
+                    onChange={(e) =>
+                      setFormularioPlantilla({
+                        ...formulario_plantilla,
+                        intervalo_dias: e.target.value,
+                      })
+                    }
+                    placeholder="0"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Las citas se programarán automáticamente con este intervalo. Ej: 1 mes, 2 semanas, 3 días
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -983,7 +1114,11 @@ export default function Tratamientos() {
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    {tratamiento_seleccionado.numero_citas} citas sugeridas
+                    {tratamiento_seleccionado.numero_citas} citas programadas
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    {obtenerTextoIntervalo(tratamiento_seleccionado)}
                   </p>
                   <p className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />

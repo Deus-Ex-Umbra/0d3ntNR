@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsInt, IsNumber, Min } from 'class-validator';
+import { IsString, IsInt, IsNumber, Min, IsOptional } from 'class-validator';
 
 export class CrearTratamientoDto {
   @ApiProperty()
@@ -15,4 +15,22 @@ export class CrearTratamientoDto {
   @IsNumber()
   @Min(0)
   costo_total: number;
+
+  @ApiProperty({ description: 'Días entre citas', default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  intervalo_dias?: number;
+
+  @ApiProperty({ description: 'Semanas entre citas', default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  intervalo_semanas?: number;
+
+  @ApiProperty({ description: 'Meses entre citas', default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  intervalo_meses?: number;
 }
