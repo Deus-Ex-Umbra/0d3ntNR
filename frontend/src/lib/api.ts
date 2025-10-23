@@ -170,6 +170,10 @@ export const agendaApi = {
     const respuesta = await api.get('/agenda/sin-pagar');
     return respuesta.data;
   },
+  obtenerCitasSinPago: async () => {
+    const respuesta = await api.get('/agenda/sin-pago');
+    return respuesta.data;
+  },
   actualizar: async (id: number, datos: any) => {
     const respuesta = await api.put(`/agenda/${id}`, datos);
     return respuesta.data;

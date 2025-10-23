@@ -3,7 +3,7 @@ import { IsDate, IsInt, IsOptional, IsString, IsNumber, IsIn, ValidateIf } from 
 import { Type } from 'class-transformer';
 
 export class CrearCitaDto {
-  @ApiProperty({ required: false, description: 'ID del paciente (obligatorio si no es un evento general)' })
+  @ApiProperty({ required: false, description: 'ID del paciente (obligatorio si se quiere monto y estado de pago)' })
   @IsOptional()
   @IsInt()
   paciente_id?: number;
@@ -23,13 +23,13 @@ export class CrearCitaDto {
   descripcion: string;
 
   @ApiProperty({ required: false, enum: ['pendiente', 'pagado', 'cancelado'], description: 'Solo para citas con paciente' })
-  @ValidateIf(o => o.paciente_id)
+  @ValidateIf(o => o.paciente_id !== undefined && o.paciente_id !== null)
   @IsOptional()
   @IsIn(['pendiente', 'pagado', 'cancelado'])
   estado_pago?: string;
 
   @ApiProperty({ required: false, description: 'Solo para citas con paciente' })
-  @ValidateIf(o => o.paciente_id)
+  @ValidateIf(o => o.paciente_id !== undefined && o.paciente_id !== null)
   @IsOptional()
   @IsNumber()
   monto_esperado?: number;

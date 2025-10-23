@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, BadRequestException, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { Cita } from './entidades/cita.entidad';
@@ -13,6 +13,7 @@ export class AgendaServicio {
   constructor(
     @InjectRepository(Cita)
     private readonly cita_repositorio: Repository<Cita>,
+    @Inject(forwardRef(() => FinanzasServicio))
     private readonly finanzas_servicio: FinanzasServicio,
   ) {}
 
@@ -160,5 +161,16 @@ export class AgendaServicio {
       relations: ['paciente', 'plan_tratamiento'],
       order: { fecha: 'DESC' }
     });
+  }
+
+  async obtenerCitasSinPago(): Promise<Cita[]> {
+    return this.cita_repositorio
+      .createQueryBuilder('cita')
+      .leftJoinAndSelect('cita.paciente', 'paciente')
+      .leftJoinAndSelect('cita.plan_tratamiento', 'plan_tratamiento')
+      .where('cita.paciente IS NOT NULL')
+      .andWhere('cita.estado_pago != :estado', { estado: 'pagado' })
+      .orderBy('cita.fecha', 'DESC')
+      .getMany();
   }
 }

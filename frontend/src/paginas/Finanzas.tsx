@@ -6,13 +6,14 @@ import { Input } from '@/componentes/ui/input';
 import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X } from 'lucide-react';
-import { finanzasApi, planesTratamientoApi, agendaApi } from '@/lib/api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { finanzasApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { Badge } from '@/componentes/ui/badge';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Movimiento {
   id: number;
@@ -31,21 +32,12 @@ interface ReporteFinanzas {
   movimientos: Movimiento[];
 }
 
-interface PlanTratamiento {
-  id: number;
-  paciente: {
-    nombre: string;
-    apellidos: string;
-  };
-  tratamiento: {
-    nombre: string;
-  };
-}
-
 interface Cita {
   id: number;
   fecha: Date;
   descripcion: string;
+  monto_esperado: number;
+  estado_pago: string;
   paciente?: {
     nombre: string;
     apellidos: string;
@@ -55,9 +47,17 @@ interface Cita {
   };
 }
 
+interface DatosGrafico {
+  periodo: string;
+  ingresos: number;
+  egresos: number;
+}
+
 export default function Finanzas() {
   const [reporte, setReporte] = useState<ReporteFinanzas | null>(null);
+  const [datos_grafico, setDatosGrafico] = useState<DatosGrafico[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [cargando_grafico, setCargandoGrafico] = useState(false);
   const [fecha_inicio, setFechaInicio] = useState('');
   const [fecha_fin, setFechaFin] = useState('');
   
@@ -71,12 +71,13 @@ export default function Finanzas() {
   const [movimiento_seleccionado, setMovimientoSeleccionado] = useState<Movimiento | null>(null);
   const [movimiento_a_eliminar, setMovimientoAEliminar] = useState<Movimiento | null>(null);
   
-  const [planes_tratamiento, setPlanesTratamiento] = useState<PlanTratamiento[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
   const [cargando_datos, setCargandoDatos] = useState(false);
 
+  const [tipo_grafico, setTipoGrafico] = useState<'dia' | 'mes' | 'ano'>('mes');
+  const [fecha_grafico, setFechaGrafico] = useState(new Date());
+
   const [formulario_ingreso, setFormularioIngreso] = useState({
-    plan_tratamiento_id: '',
     cita_id: '',
     concepto: '',
     fecha: '',
@@ -87,12 +88,16 @@ export default function Finanzas() {
     concepto: '',
     fecha: '',
     monto: '',
-    cita_id: '',
   });
 
   useEffect(() => {
     cargarReporte();
+    cargarDatosGrafico();
   }, []);
+
+  useEffect(() => {
+    cargarDatosGrafico();
+  }, [tipo_grafico, fecha_grafico]);
 
   const cargarReporte = async (inicio?: string, fin?: string) => {
     setCargando(true);
@@ -111,18 +116,31 @@ export default function Finanzas() {
     }
   };
 
-  const cargarDatosAdicionales = async () => {
+  const cargarDatosGrafico = async () => {
+    setCargandoGrafico(true);
+    try {
+      const fecha_str = fecha_grafico.toISOString().split('T')[0];
+      const datos = await finanzasApi.obtenerDatosGrafico(tipo_grafico, fecha_str);
+      setDatosGrafico(datos);
+    } catch (error) {
+      console.error('Error al cargar datos del gráfico:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los datos del gráfico',
+        variant: 'destructive',
+      });
+    } finally {
+      setCargandoGrafico(false);
+    }
+  };
+
+  const cargarCitasSinPago = async () => {
     setCargandoDatos(true);
     try {
-      const fecha_actual = new Date();
-      const [datos_planes, datos_citas] = await Promise.all([
-        planesTratamientoApi.obtenerTodos(),
-        agendaApi.obtenerPorMes(fecha_actual.getMonth() + 1, fecha_actual.getFullYear()),
-      ]);
-      setPlanesTratamiento(datos_planes.filter((p: PlanTratamiento) => p.paciente && p.tratamiento));
+      const datos_citas = await agendaApi.obtenerCitasSinPago();
       setCitas(datos_citas);
     } catch (error) {
-      console.error('Error al cargar datos adicionales:', error);
+      console.error('Error al cargar citas:', error);
     } finally {
       setCargandoDatos(false);
     }
@@ -148,7 +166,6 @@ export default function Finanzas() {
 
   const abrirDialogoIngreso = () => {
     setFormularioIngreso({
-      plan_tratamiento_id: '',
       cita_id: '',
       concepto: '',
       fecha: new Date().toISOString().split('T')[0],
@@ -156,7 +173,7 @@ export default function Finanzas() {
     });
     setModoEdicionIngreso(false);
     setMovimientoSeleccionado(null);
-    cargarDatosAdicionales();
+    cargarCitasSinPago();
     setDialogoIngresoAbierto(true);
   };
 
@@ -165,17 +182,14 @@ export default function Finanzas() {
       concepto: '',
       fecha: new Date().toISOString().split('T')[0],
       monto: '',
-      cita_id: '',
     });
     setModoEdicionEgreso(false);
     setMovimientoSeleccionado(null);
-    cargarDatosAdicionales();
     setDialogoEgresoAbierto(true);
   };
 
   const abrirEditarIngreso = (movimiento: Movimiento) => {
     setFormularioIngreso({
-      plan_tratamiento_id: movimiento.plan_tratamiento_id?.toString() || '',
       cita_id: movimiento.cita_id?.toString() || '',
       concepto: movimiento.concepto || '',
       fecha: new Date(movimiento.fecha).toISOString().split('T')[0],
@@ -183,7 +197,6 @@ export default function Finanzas() {
     });
     setModoEdicionIngreso(true);
     setMovimientoSeleccionado(movimiento);
-    cargarDatosAdicionales();
     setDialogoIngresoAbierto(true);
   };
 
@@ -192,19 +205,17 @@ export default function Finanzas() {
       concepto: movimiento.concepto || '',
       fecha: new Date(movimiento.fecha).toISOString().split('T')[0],
       monto: movimiento.monto.toString(),
-      cita_id: movimiento.cita_id?.toString() || '',
     });
     setModoEdicionEgreso(true);
     setMovimientoSeleccionado(movimiento);
-    cargarDatosAdicionales();
     setDialogoEgresoAbierto(true);
   };
 
   const manejarRegistrarIngreso = async () => {
-    if (!formulario_ingreso.fecha || !formulario_ingreso.monto) {
+    if (!formulario_ingreso.cita_id || !formulario_ingreso.fecha || !formulario_ingreso.monto) {
       toast({
         title: 'Error',
-        description: 'Fecha y monto son obligatorios',
+        description: 'Cita, fecha y monto son obligatorios',
         variant: 'destructive',
       });
       return;
@@ -226,7 +237,7 @@ export default function Finanzas() {
         const datos: any = {
           fecha: new Date(formulario_ingreso.fecha),
           monto,
-          concepto: formulario_ingreso.concepto || 'Ingreso general',
+          concepto: formulario_ingreso.concepto || 'Ingreso por cita',
         };
 
         await finanzasApi.actualizarPago(movimiento_seleccionado.id, datos);
@@ -236,28 +247,22 @@ export default function Finanzas() {
         });
       } else {
         const datos: any = {
+          cita_id: parseInt(formulario_ingreso.cita_id),
           fecha: new Date(formulario_ingreso.fecha),
           monto,
-          concepto: formulario_ingreso.concepto || 'Ingreso general',
+          concepto: formulario_ingreso.concepto || 'Ingreso por cita',
         };
-
-        if (formulario_ingreso.plan_tratamiento_id) {
-          datos.plan_tratamiento_id = parseInt(formulario_ingreso.plan_tratamiento_id);
-        }
-
-        if (formulario_ingreso.cita_id) {
-          datos.cita_id = parseInt(formulario_ingreso.cita_id);
-        }
 
         await finanzasApi.registrarPago(datos);
         toast({
           title: 'Éxito',
-          description: 'Ingreso registrado correctamente',
+          description: 'Ingreso registrado correctamente. La cita se marcó como pagada.',
         });
       }
 
       setDialogoIngresoAbierto(false);
       cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+      cargarDatosGrafico();
     } catch (error: any) {
       console.error('Error al registrar ingreso:', error);
       toast({
@@ -299,10 +304,6 @@ export default function Finanzas() {
           monto,
         };
 
-        if (formulario_egreso.cita_id) {
-          datos.cita_id = parseInt(formulario_egreso.cita_id);
-        }
-
         await finanzasApi.actualizarEgreso(movimiento_seleccionado.id, datos);
         toast({
           title: 'Éxito',
@@ -315,10 +316,6 @@ export default function Finanzas() {
           monto,
         };
 
-        if (formulario_egreso.cita_id) {
-          datos.cita_id = parseInt(formulario_egreso.cita_id);
-        }
-
         await finanzasApi.registrarEgreso(datos);
         toast({
           title: 'Éxito',
@@ -328,6 +325,7 @@ export default function Finanzas() {
 
       setDialogoEgresoAbierto(false);
       cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+      cargarDatosGrafico();
     } catch (error: any) {
       console.error('Error al registrar egreso:', error);
       toast({
@@ -363,6 +361,7 @@ export default function Finanzas() {
       setDialogoConfirmarEliminarAbierto(false);
       setMovimientoAEliminar(null);
       cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+      cargarDatosGrafico();
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
       toast({
@@ -370,6 +369,30 @@ export default function Finanzas() {
         description: 'No se pudo eliminar el movimiento',
         variant: 'destructive',
       });
+    }
+  };
+
+  const cambiarFechaGrafico = (direccion: number) => {
+    const nueva_fecha = new Date(fecha_grafico);
+    
+    if (tipo_grafico === 'dia') {
+      nueva_fecha.setDate(nueva_fecha.getDate() + direccion);
+    } else if (tipo_grafico === 'mes') {
+      nueva_fecha.setMonth(nueva_fecha.getMonth() + direccion);
+    } else {
+      nueva_fecha.setFullYear(nueva_fecha.getFullYear() + direccion);
+    }
+    
+    setFechaGrafico(nueva_fecha);
+  };
+
+  const obtenerTituloGrafico = (): string => {
+    if (tipo_grafico === 'dia') {
+      return fecha_grafico.toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' });
+    } else if (tipo_grafico === 'mes') {
+      return fecha_grafico.toLocaleDateString('es-BO', { month: 'long', year: 'numeric' });
+    } else {
+      return fecha_grafico.getFullYear().toString();
     }
   };
 
@@ -390,29 +413,20 @@ export default function Finanzas() {
     });
   };
 
-  const opciones_planes: OpcionCombobox[] = [
-    { valor: '', etiqueta: 'Sin plan de tratamiento' },
-    ...planes_tratamiento.map(p => ({
-      valor: p.id.toString(),
-      etiqueta: `${p.paciente.nombre} ${p.paciente.apellidos} - ${p.tratamiento.nombre}`
-    }))
-  ];
+  const formatearFechaCita = (fecha: Date): string => {
+    return new Date(fecha).toLocaleDateString('es-BO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
-  const opciones_citas: OpcionCombobox[] = [
-    { valor: '', etiqueta: 'Sin cita asociada' },
-    ...citas.map(c => ({
-      valor: c.id.toString(),
-      etiqueta: `${formatearFecha(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion}`
-    }))
-  ];
-
-  const opciones_citas_sin_plan: OpcionCombobox[] = [
-    { valor: '', etiqueta: 'Sin cita asociada' },
-    ...citas.filter(c => !c.plan_tratamiento).map(c => ({
-      valor: c.id.toString(),
-      etiqueta: `${formatearFecha(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion}`
-    }))
-  ];
+  const opciones_citas: OpcionCombobox[] = citas.map(c => ({
+    valor: c.id.toString(),
+    etiqueta: `${formatearFechaCita(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion} - ${formatearMoneda(c.monto_esperado || 0)}`
+  }));
 
   if (cargando) {
     return (
@@ -570,6 +584,127 @@ export default function Finanzas() {
 
           <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Gráfico de Ingresos y Egresos</CardTitle>
+                    <CardDescription>
+                      Visualización de movimientos financieros - {obtenerTituloGrafico()}
+                    </CardDescription>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => cambiarFechaGrafico(-1)}
+                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setFechaGrafico(new Date())}
+                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
+                  >
+                    Hoy
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => cambiarFechaGrafico(1)}
+                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs value={tipo_grafico} onValueChange={(value) => setTipoGrafico(value as 'dia' | 'mes' | 'ano')} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-4">
+                  <TabsTrigger value="dia">Por Día</TabsTrigger>
+                  <TabsTrigger value="mes">Por Mes</TabsTrigger>
+                  <TabsTrigger value="ano">Por Año</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="dia" className="mt-0">
+                  {cargando_grafico ? (
+                    <div className="flex items-center justify-center h-80">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={datos_grafico}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="periodo" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value: number) => formatearMoneda(value)}
+                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                        />
+                        <Legend />
+                        <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
+                        <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="mes" className="mt-0">
+                  {cargando_grafico ? (
+                    <div className="flex items-center justify-center h-80">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={datos_grafico}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="periodo" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value: number) => formatearMoneda(value)}
+                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                        />
+                        <Legend />
+                        <Line type="monotone" dataKey="ingresos" stroke="#22c55e" strokeWidth={2} name="Ingresos" />
+                        <Line type="monotone" dataKey="egresos" stroke="#ef4444" strokeWidth={2} name="Egresos" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="ano" className="mt-0">
+                  {cargando_grafico ? (
+                    <div className="flex items-center justify-center h-80">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={datos_grafico}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="periodo" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value: number) => formatearMoneda(value)}
+                          contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                        />
+                        <Legend />
+                        <Bar dataKey="ingresos" fill="#22c55e" name="Ingresos" />
+                        <Bar dataKey="egresos" fill="#ef4444" name="Egresos" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
+            <CardHeader>
               <div className="flex items-center gap-3">
                 <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <FileText className="h-5 w-5 text-primary" />
@@ -688,102 +823,78 @@ export default function Finanzas() {
             <DialogDescription>
               {modo_edicion_ingreso 
                 ? 'Modifica los datos del ingreso'
-                : 'Registra un pago o ingreso a tu consultorio'
+                : 'Registra un pago asociado a una cita con paciente'
               }
             </DialogDescription>
           </DialogHeader>
-          
-          <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="relacion" disabled={modo_edicion_ingreso}>
-                Relación
-              </TabsTrigger>
-            </TabsList>
 
-            <TabsContent value="general" className="space-y-4 mt-4">
+          <div className="space-y-4 py-4">
+            {!modo_edicion_ingreso && (
               <div className="space-y-2">
-                <Label htmlFor="concepto_ingreso">Concepto</Label>
+                <Label htmlFor="cita">Cita *</Label>
+                {cargando_datos ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <Combobox
+                    opciones={opciones_citas}
+                    valor={formulario_ingreso.cita_id}
+                    onChange={(valor) => setFormularioIngreso({ ...formulario_ingreso, cita_id: valor })}
+                    placeholder="Selecciona una cita"
+                  />
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Solo se muestran citas con paciente que no están pagadas
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="concepto_ingreso">Concepto (opcional)</Label>
+              <Input
+                id="concepto_ingreso"
+                placeholder="Ej: Pago de consulta, Tratamiento completado"
+                value={formulario_ingreso.concepto}
+                onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, concepto: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fecha_ingreso">Fecha *</Label>
                 <Input
-                  id="concepto_ingreso"
-                  placeholder="Ej: Pago de consulta, Tratamiento completado"
-                  value={formulario_ingreso.concepto}
-                  onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, concepto: e.target.value })}
+                  id="fecha_ingreso"
+                  type="date"
+                  value={formulario_ingreso.fecha}
+                  onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, fecha: e.target.value })}
                   className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fecha_ingreso">Fecha *</Label>
-                  <Input
-                    id="fecha_ingreso"
-                    type="date"
-                    value={formulario_ingreso.fecha}
-                    onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, fecha: e.target.value })}
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="monto_ingreso">Monto (Bs.) *</Label>
-                  <Input
-                    id="monto_ingreso"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formulario_ingreso.monto}
-                    onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, monto: e.target.value })}
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="monto_ingreso">Monto (Bs.) *</Label>
+                <Input
+                  id="monto_ingreso"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formulario_ingreso.monto}
+                  onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, monto: e.target.value })}
+                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                />
               </div>
+            </div>
 
-              {modo_edicion_ingreso && movimiento_seleccionado && (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    ⚠️ No se pueden cambiar las relaciones de un ingreso existente
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="relacion" className="space-y-4 mt-4">
-              {cargando_datos ? (
-                <div className="text-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label>Plan de Tratamiento (opcional)</Label>
-                    <Combobox
-                      opciones={opciones_planes}
-                      valor={formulario_ingreso.plan_tratamiento_id}
-                      onChange={(valor) => setFormularioIngreso({ ...formulario_ingreso, plan_tratamiento_id: valor })}
-                      placeholder="Selecciona un plan"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Vincula este ingreso a un plan de tratamiento específico
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Cita Asociada (opcional)</Label>
-                    <Combobox
-                      opciones={opciones_citas}
-                      valor={formulario_ingreso.cita_id}
-                      onChange={(valor) => setFormularioIngreso({ ...formulario_ingreso, cita_id: valor })}
-                      placeholder="Selecciona una cita"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Vincula este ingreso a una cita (se marcará como pagada automáticamente)
-                    </p>
-                  </div>
-                </>
-              )}
-            </TabsContent>
-          </Tabs>
+            {modo_edicion_ingreso && movimiento_seleccionado && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ No se puede cambiar la cita asociada de un ingreso existente
+                </p>
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button
@@ -858,31 +969,6 @@ export default function Finanzas() {
                 />
               </div>
             </div>
-
-            {cargando_datos ? (
-              <div className="text-center py-4">
-                <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Cita Asociada (opcional)</Label>
-                <Combobox
-                  opciones={opciones_citas_sin_plan}
-                  valor={formulario_egreso.cita_id}
-                  onChange={(valor) => setFormularioEgreso({ ...formulario_egreso, cita_id: valor })}
-                  placeholder="Selecciona una cita"
-                  disabled={modo_edicion_egreso}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Solo citas sin plan de tratamiento (se marcarán como canceladas)
-                </p>
-                {modo_edicion_egreso && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    ⚠️ No se puede cambiar la cita asociada de un egreso existente
-                  </p>
-                )}
-              </div>
-            )}
           </div>
 
           <DialogFooter>

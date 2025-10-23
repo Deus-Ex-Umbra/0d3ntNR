@@ -3,7 +3,7 @@ import { IsInt, IsNumber, Min, IsDate, IsOptional, IsString } from 'class-valida
 import { Type } from 'class-transformer';
 
 export class RegistrarPagoDto {
-  @ApiProperty({ description: 'ID de la cita a la que se asocia el pago' })
+  @ApiProperty({ description: 'ID de la cita a la que se asocia el pago (obligatorio)' })
   @IsInt()
   cita_id: number;
   

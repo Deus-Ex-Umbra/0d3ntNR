@@ -17,8 +17,8 @@ interface Cita {
   id: number;
   fecha: Date;
   descripcion: string;
-  estado_pago: string;
-  monto_esperado: number;
+  estado_pago: string | null;
+  monto_esperado: number | null;
   paciente?: {
     id: number;
     nombre: string;
@@ -199,12 +199,12 @@ export default function Agenda() {
       const datos: any = {
         fecha: new Date(formulario.fecha),
         descripcion: formulario.descripcion,
-        estado_pago: formulario.estado_pago,
-        monto_esperado: formulario.monto_esperado ? parseFloat(formulario.monto_esperado) : 0,
       };
 
       if (formulario.paciente_id) {
         datos.paciente_id = parseInt(formulario.paciente_id);
+        datos.estado_pago = formulario.estado_pago;
+        datos.monto_esperado = formulario.monto_esperado ? parseFloat(formulario.monto_esperado) : 0;
       }
 
       if (modo_edicion && cita_seleccionada) {
@@ -300,12 +300,14 @@ export default function Agenda() {
     }).format(monto);
   };
 
-  const obtenerColorEstado = (estado: string): string => {
+  const obtenerColorEstado = (estado: string | null): string => {
+    if (!estado) return 'bg-gray-500';
     const estado_encontrado = estados_pago.find(e => e.valor === estado);
     return estado_encontrado?.color || 'bg-gray-500';
   };
 
-  const obtenerEtiquetaEstado = (estado: string): string => {
+  const obtenerEtiquetaEstado = (estado: string | null): string => {
+    if (!estado) return 'Sin estado';
     const estado_encontrado = estados_pago.find(e => e.valor === estado);
     return estado_encontrado?.etiqueta || estado;
   };
@@ -358,6 +360,8 @@ export default function Agenda() {
       etiqueta: e.etiqueta
     }))
   ];
+
+  const tiene_paciente = formulario.paciente_id !== '';
 
   if (cargando) {
     return (
@@ -526,16 +530,18 @@ export default function Agenda() {
                               </div>
                               <div className="ml-4 flex-1">
                                 <p className="text-sm text-foreground">{cita.descripcion}</p>
-                                {cita.monto_esperado > 0 && (
+                                {cita.paciente && cita.monto_esperado && cita.monto_esperado > 0 && (
                                   <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                                     <DollarSign className="h-3 w-3" />
                                     Monto esperado: {formatearMoneda(cita.monto_esperado)}
                                   </p>
                                 )}
                               </div>
-                              <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white hover:scale-110 transition-transform duration-200`}>
-                                {obtenerEtiquetaEstado(cita.estado_pago)}
-                              </Badge>
+                              {cita.paciente && (
+                                <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white hover:scale-110 transition-transform duration-200`}>
+                                  {obtenerEtiquetaEstado(cita.estado_pago)}
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex gap-2 ml-4">
                               <Button
@@ -651,6 +657,9 @@ export default function Agenda() {
                 onChange={(valor) => setFormulario({ ...formulario, paciente_id: valor })}
                 placeholder="Selecciona un paciente"
               />
+              <p className="text-xs text-muted-foreground">
+                Si no seleccionas un paciente, será un evento general sin estado ni monto
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -676,31 +685,35 @@ export default function Agenda() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="estado_pago">Estado de Pago</Label>
-                <Combobox
-                  opciones={opciones_estados}
-                  valor={formulario.estado_pago}
-                  onChange={(valor) => setFormulario({ ...formulario, estado_pago: valor })}
-                  placeholder="Estado"
-                />
-              </div>
+            {tiene_paciente && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="estado_pago">Estado de Pago</Label>
+                    <Combobox
+                      opciones={opciones_estados}
+                      valor={formulario.estado_pago}
+                      onChange={(valor) => setFormulario({ ...formulario, estado_pago: valor })}
+                      placeholder="Estado"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="monto_esperado">Monto Esperado (Bs.)</Label>
-                <Input
-                  id="monto_esperado"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formulario.monto_esperado}
-                  onChange={(e) => setFormulario({ ...formulario, monto_esperado: e.target.value })}
-                  placeholder="0.00"
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                />
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="monto_esperado">Monto Esperado (Bs.)</Label>
+                    <Input
+                      id="monto_esperado"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formulario.monto_esperado}
+                      onChange={(e) => setFormulario({ ...formulario, monto_esperado: e.target.value })}
+                      placeholder="0.00"
+                      className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>
