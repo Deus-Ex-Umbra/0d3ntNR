@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
+import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 
 interface Cita {
   id: number;
@@ -664,12 +665,10 @@ export default function Agenda() {
 
             <div className="space-y-2">
               <Label htmlFor="fecha">Fecha y Hora *</Label>
-              <Input
-                id="fecha"
-                type="datetime-local"
-                value={formulario.fecha}
-                onChange={(e) => setFormulario({ ...formulario, fecha: e.target.value })}
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              <DateTimePicker
+                valor={formulario.fecha ? new Date(formulario.fecha) : undefined}
+                onChange={(fecha) => fecha && setFormulario({ ...formulario, fecha: fecha.toISOString().slice(0, 16) })}
+                placeholder="Selecciona fecha y hora"
               />
             </div>
 

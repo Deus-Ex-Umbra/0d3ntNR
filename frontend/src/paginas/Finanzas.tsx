@@ -7,13 +7,14 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
 import { finanzasApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DatePicker } from '@/componentes/ui/date-picker';
 
 interface Movimiento {
   id: number;
@@ -55,6 +56,7 @@ interface DatosGrafico {
 
 export default function Finanzas() {
   const [reporte, setReporte] = useState<ReporteFinanzas | null>(null);
+  const [reporte_general, setReporteGeneral] = useState<ReporteFinanzas | null>(null);
   const [datos_grafico, setDatosGrafico] = useState<DatosGrafico[]>([]);
   const [cargando, setCargando] = useState(true);
   const [cargando_grafico, setCargandoGrafico] = useState(false);
@@ -76,26 +78,28 @@ export default function Finanzas() {
   const [fecha_grafico, setFechaGrafico] = useState(new Date());
 
   const [filtros, setFiltros] = useState({
-    fecha_inicio: new Date().toISOString().split('T')[0],
-    fecha_fin: new Date().toISOString().split('T')[0],
+    fecha_inicio: new Date(),
+    fecha_fin: new Date(),
     busqueda: '',
   });
+
+  const [filtros_aplicados, setFiltrosAplicados] = useState(false);
 
   const [formulario_ingreso, setFormularioIngreso] = useState({
     cita_id: '',
     concepto: '',
-    fecha: '',
+    fecha: new Date(),
     monto: '',
   });
 
   const [formulario_egreso, setFormularioEgreso] = useState({
     concepto: '',
-    fecha: '',
+    fecha: new Date(),
     monto: '',
   });
 
   useEffect(() => {
-    cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
+    cargarReporteGeneral();
     cargarDatosGrafico();
   }, []);
 
@@ -103,11 +107,12 @@ export default function Finanzas() {
     cargarDatosGrafico();
   }, [tipo_grafico, fecha_grafico]);
 
-  const cargarReporte = async (inicio?: string, fin?: string) => {
+  const cargarReporteGeneral = async () => {
     setCargando(true);
     try {
-      const datos = await finanzasApi.obtenerReporte(inicio, fin);
+      const datos = await finanzasApi.obtenerReporte();
       setReporte(datos);
+      setReporteGeneral(datos);
     } catch (error) {
       console.error('Error al cargar reporte:', error);
       toast({
@@ -150,7 +155,7 @@ export default function Finanzas() {
     }
   };
 
-  const manejarFiltrarPorFechas = () => {
+  const manejarFiltrarPorFechas = async () => {
     if (!filtros.fecha_inicio || !filtros.fecha_fin) {
       toast({
         title: 'Error',
@@ -159,24 +164,39 @@ export default function Finanzas() {
       });
       return;
     }
-    cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
+
+    try {
+      const inicio = filtros.fecha_inicio.toISOString().split('T')[0];
+      const fin = filtros.fecha_fin.toISOString().split('T')[0];
+      const datos = await finanzasApi.obtenerReporte(inicio, fin);
+      setReporte(datos);
+      setFiltrosAplicados(true);
+    } catch (error) {
+      console.error('Error al filtrar:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo aplicar el filtro',
+        variant: 'destructive',
+      });
+    }
   };
 
   const limpiarFiltros = () => {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = new Date();
     setFiltros({
       fecha_inicio: hoy,
       fecha_fin: hoy,
       busqueda: '',
     });
-    cargarReporte(hoy, hoy);
+    setReporte(reporte_general);
+    setFiltrosAplicados(false);
   };
 
   const abrirDialogoIngreso = () => {
     setFormularioIngreso({
       cita_id: '',
       concepto: '',
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: new Date(),
       monto: '',
     });
     setModoEdicionIngreso(false);
@@ -188,7 +208,7 @@ export default function Finanzas() {
   const abrirDialogoEgreso = () => {
     setFormularioEgreso({
       concepto: '',
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: new Date(),
       monto: '',
     });
     setModoEdicionEgreso(false);
@@ -200,7 +220,7 @@ export default function Finanzas() {
     setFormularioIngreso({
       cita_id: movimiento.cita_id?.toString() || '',
       concepto: movimiento.concepto || '',
-      fecha: new Date(movimiento.fecha).toISOString().split('T')[0],
+      fecha: new Date(movimiento.fecha),
       monto: movimiento.monto.toString(),
     });
     setModoEdicionIngreso(true);
@@ -211,7 +231,7 @@ export default function Finanzas() {
   const abrirEditarEgreso = (movimiento: Movimiento) => {
     setFormularioEgreso({
       concepto: movimiento.concepto || '',
-      fecha: new Date(movimiento.fecha).toISOString().split('T')[0],
+      fecha: new Date(movimiento.fecha),
       monto: movimiento.monto.toString(),
     });
     setModoEdicionEgreso(true);
@@ -243,7 +263,7 @@ export default function Finanzas() {
     try {
       if (modo_edicion_ingreso && movimiento_seleccionado) {
         const datos: any = {
-          fecha: new Date(formulario_ingreso.fecha),
+          fecha: formulario_ingreso.fecha,
           monto,
           concepto: formulario_ingreso.concepto,
         };
@@ -255,7 +275,7 @@ export default function Finanzas() {
         });
       } else {
         const datos: any = {
-          fecha: new Date(formulario_ingreso.fecha),
+          fecha: formulario_ingreso.fecha,
           monto,
           concepto: formulario_ingreso.concepto,
         };
@@ -274,7 +294,10 @@ export default function Finanzas() {
       }
 
       setDialogoIngresoAbierto(false);
-      cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
+      await cargarReporteGeneral();
+      if (filtros_aplicados) {
+        await manejarFiltrarPorFechas();
+      }
       cargarDatosGrafico();
     } catch (error: any) {
       console.error('Error al registrar ingreso:', error);
@@ -313,7 +336,7 @@ export default function Finanzas() {
       if (modo_edicion_egreso && movimiento_seleccionado) {
         const datos: any = {
           concepto: formulario_egreso.concepto,
-          fecha: new Date(formulario_egreso.fecha),
+          fecha: formulario_egreso.fecha,
           monto,
         };
 
@@ -325,7 +348,7 @@ export default function Finanzas() {
       } else {
         const datos: any = {
           concepto: formulario_egreso.concepto,
-          fecha: new Date(formulario_egreso.fecha),
+          fecha: formulario_egreso.fecha,
           monto,
         };
 
@@ -337,7 +360,10 @@ export default function Finanzas() {
       }
 
       setDialogoEgresoAbierto(false);
-      cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
+      await cargarReporteGeneral();
+      if (filtros_aplicados) {
+        await manejarFiltrarPorFechas();
+      }
       cargarDatosGrafico();
     } catch (error: any) {
       console.error('Error al registrar egreso:', error);
@@ -373,7 +399,10 @@ export default function Finanzas() {
 
       setDialogoConfirmarEliminarAbierto(false);
       setMovimientoAEliminar(null);
-      cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
+      await cargarReporteGeneral();
+      if (filtros_aplicados) {
+        await manejarFiltrarPorFechas();
+      }
       cargarDatosGrafico();
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
@@ -541,7 +570,7 @@ export default function Finanzas() {
             <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:scale-105 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Ingresos
+                  Total Ingresos {filtros_aplicados && '(General)'}
                 </CardTitle>
                 <div className="bg-green-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <TrendingUp className="h-5 w-5 text-green-500" />
@@ -549,7 +578,7 @@ export default function Finanzas() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-green-500">
-                  {formatearMoneda(reporte?.total_ingresos || 0)}
+                  {formatearMoneda(reporte_general?.total_ingresos || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -557,7 +586,7 @@ export default function Finanzas() {
             <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:scale-105 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Egresos
+                  Total Egresos {filtros_aplicados && '(General)'}
                 </CardTitle>
                 <div className="bg-red-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <TrendingDown className="h-5 w-5 text-red-500" />
@@ -565,7 +594,7 @@ export default function Finanzas() {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-red-500">
-                  {formatearMoneda(reporte?.total_egresos || 0)}
+                  {formatearMoneda(reporte_general?.total_egresos || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -573,7 +602,7 @@ export default function Finanzas() {
             <Card className="border-2 border-primary/30 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-all duration-300 bg-gradient-to-br from-primary/5 to-transparent">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Balance Total
+                  Balance Total {filtros_aplicados && '(General)'}
                 </CardTitle>
                 <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
                   <DollarSign className="h-5 w-5 text-primary" />
@@ -581,13 +610,67 @@ export default function Finanzas() {
               </CardHeader>
               <CardContent>
                 <div className={`text-3xl font-bold ${
-                  (reporte?.balance || 0) >= 0 ? 'text-primary' : 'text-destructive'
+                  (reporte_general?.balance || 0) >= 0 ? 'text-primary' : 'text-destructive'
                 }`}>
-                  {formatearMoneda(reporte?.balance || 0)}
+                  {formatearMoneda(reporte_general?.balance || 0)}
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {filtros_aplicados && (
+            <div className="grid gap-6 md:grid-cols-3">
+              <Card className="border-2 border-green-500/30 shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:scale-105 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Ingresos (Filtro)
+                  </CardTitle>
+                  <div className="bg-green-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                    <Filter className="h-4 w-4 text-green-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-500">
+                    {formatearMoneda(reporte?.total_ingresos || 0)}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-red-500/30 shadow-lg hover:shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:scale-105 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Egresos (Filtro)
+                  </CardTitle>
+                  <div className="bg-red-500/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                    <Filter className="h-4 w-4 text-red-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-500">
+                    {formatearMoneda(reporte?.total_egresos || 0)}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-primary/50 shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Balance (Filtro)
+                  </CardTitle>
+                  <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
+                    <Filter className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${
+                    (reporte?.balance || 0) >= 0 ? 'text-primary' : 'text-destructive'
+                  }`}>
+                    {formatearMoneda(reporte?.balance || 0)}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
             <CardHeader>
@@ -742,22 +825,18 @@ export default function Finanzas() {
                 </div>
                 <div className="flex-1 space-y-2">
                   <Label htmlFor="fecha_inicio">Fecha Inicio</Label>
-                  <Input
-                    id="fecha_inicio"
-                    type="date"
-                    value={filtros.fecha_inicio}
-                    onChange={(e) => setFiltros({ ...filtros, fecha_inicio: e.target.value })}
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  <DatePicker
+                    valor={filtros.fecha_inicio}
+                    onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_inicio: fecha })}
+                    placeholder="Selecciona fecha inicio"
                   />
                 </div>
                 <div className="flex-1 space-y-2">
                   <Label htmlFor="fecha_fin">Fecha Fin</Label>
-                  <Input
-                    id="fecha_fin"
-                    type="date"
-                    value={filtros.fecha_fin}
-                    onChange={(e) => setFiltros({ ...filtros, fecha_fin: e.target.value })}
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  <DatePicker
+                    valor={filtros.fecha_fin}
+                    onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_fin: fecha })}
+                    placeholder="Selecciona fecha fin"
                   />
                 </div>
                 <Button 
@@ -934,12 +1013,10 @@ export default function Finanzas() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fecha_ingreso">Fecha *</Label>
-                <Input
-                  id="fecha_ingreso"
-                  type="date"
-                  value={formulario_ingreso.fecha}
-                  onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, fecha: e.target.value })}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                <DatePicker
+                  valor={formulario_ingreso.fecha}
+                  onChange={(fecha) => fecha && setFormularioIngreso({ ...formulario_ingreso, fecha })}
+                  placeholder="Selecciona fecha"
                 />
               </div>
 
@@ -1017,12 +1094,10 @@ export default function Finanzas() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fecha_egreso">Fecha *</Label>
-                <Input
-                  id="fecha_egreso"
-                  type="date"
-                  value={formulario_egreso.fecha}
-                  onChange={(e) => setFormularioEgreso({ ...formulario_egreso, fecha: e.target.value })}
-                  className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                <DatePicker
+                  valor={formulario_egreso.fecha}
+                  onChange={(fecha) => fecha && setFormularioEgreso({ ...formulario_egreso, fecha })}
+                  placeholder="Selecciona fecha"
                 />
               </div>
 

@@ -38,6 +38,8 @@ export class EstadisticasServicio {
       pagos_mes,
       egresos_mes,
       citas_recientes,
+      pagos_recientes,
+      egresos_recientes,
     ] = await Promise.all([
       this.paciente_repositorio.count(),
       this.cita_repositorio.count({
@@ -56,11 +58,41 @@ export class EstadisticasServicio {
         order: { fecha: 'DESC' },
         take: 5,
       }),
+      this.pago_repositorio.find({
+        relations: ['plan_tratamiento', 'plan_tratamiento.paciente', 'cita', 'cita.paciente'],
+        order: { fecha: 'DESC' },
+        take: 3,
+      }),
+      this.egreso_repositorio.find({
+        order: { fecha: 'DESC' },
+        take: 3,
+      }),
     ]);
 
     const ingresos_mes = pagos_mes.reduce((sum, p) => sum + Number(p.monto), 0);
     const egresos_mes_total = egresos_mes.reduce((sum, e) => sum + Number(e.monto), 0);
     const balance_mes = ingresos_mes - egresos_mes_total;
+
+    const ultimas_transacciones = [
+      ...pagos_recientes.map(p => ({
+        id: p.id,
+        tipo: 'ingreso' as const,
+        fecha: p.fecha,
+        monto: Number(p.monto),
+        concepto: p.concepto,
+        cita_id: p.cita?.id,
+        plan_tratamiento_id: p.plan_tratamiento?.id,
+      })),
+      ...egresos_recientes.map(e => ({
+        id: e.id,
+        tipo: 'egreso' as const,
+        fecha: e.fecha,
+        monto: Number(e.monto),
+        concepto: e.concepto,
+      })),
+    ]
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+      .slice(0, 3);
 
     return {
       total_pacientes,
@@ -70,6 +102,7 @@ export class EstadisticasServicio {
       egresos_mes: egresos_mes_total,
       balance_mes,
       citas_recientes,
+      ultimas_transacciones,
     };
   }
 }

@@ -2,8 +2,18 @@ import { useState, useEffect } from 'react';
 import { MenuLateral } from '@/componentes/MenuLateral';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
-import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown } from 'lucide-react';
 import { estadisticasApi, asistenteApi } from '@/lib/api';
+
+interface Transaccion {
+  id: number;
+  tipo: 'ingreso' | 'egreso';
+  fecha: Date;
+  monto: number;
+  concepto: string;
+  cita_id?: number;
+  plan_tratamiento_id?: number;
+}
 
 interface Estadisticas {
   total_pacientes: number;
@@ -21,6 +31,7 @@ interface Estadisticas {
       apellidos: string;
     };
   }>;
+  ultimas_transacciones: Transaccion[];
 }
 
 interface MensajeGuardado {
@@ -135,6 +146,15 @@ export default function Inicio() {
 
   const formatearFecha = (fecha: Date): string => {
     return new Date(fecha).toLocaleDateString('es-BO', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatearFechaTransaccion = (fecha: Date): string => {
+    return new Date(fecha).toLocaleString('es-BO', {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
@@ -272,6 +292,45 @@ export default function Inicio() {
                     <span className={`text-2xl font-bold ${(estadisticas?.balance_mes || 0) >= 0 ? 'text-primary' : 'text-destructive'}`}>
                       {formatearMoneda(estadisticas?.balance_mes || 0)}
                     </span>
+                  </div>
+                </div>
+
+                <div className="border-t-2 border-border pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">Últimas Transacciones</h4>
+                  <div className="space-y-2">
+                    {!estadisticas?.ultimas_transacciones || estadisticas.ultimas_transacciones.length === 0 ? (
+                      <p className="text-center text-muted-foreground text-sm py-4">No hay transacciones recientes</p>
+                    ) : (
+                      estadisticas.ultimas_transacciones.map((transaccion) => (
+                        <div key={`${transaccion.tipo}-${transaccion.id}`} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors duration-200">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`p-1.5 rounded-lg ${
+                              transaccion.tipo === 'ingreso' 
+                                ? 'bg-green-500/10' 
+                                : 'bg-red-500/10'
+                            }`}>
+                              {transaccion.tipo === 'ingreso' ? (
+                                <TrendingUp className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <TrendingDown className="h-4 w-4 text-red-500" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{transaccion.concepto}</p>
+                              <p className="text-xs text-muted-foreground">{formatearFechaTransaccion(transaccion.fecha)}</p>
+                            </div>
+                          </div>
+                          <span className={`text-sm font-bold ${
+                            transaccion.tipo === 'ingreso' 
+                              ? 'text-green-500' 
+                              : 'text-red-500'
+                          }`}>
+                            {transaccion.tipo === 'ingreso' ? '+' : '-'}
+                            {formatearMoneda(transaccion.monto)}
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>

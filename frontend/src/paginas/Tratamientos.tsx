@@ -51,6 +51,8 @@ import { toast } from "@/hooks/use-toast";
 import { Toaster } from "@/componentes/ui/toaster";
 import { Badge } from "@/componentes/ui/badge";
 import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
+import { DatePicker } from '@/componentes/ui/date-picker';
+import { DateTimePicker } from '@/componentes/ui/date-time-picker';
 
 interface Tratamiento {
   id: number;
@@ -1092,17 +1094,13 @@ export default function Tratamientos() {
 
             <div className="space-y-2">
               <Label htmlFor="fecha_inicio">Fecha de Inicio *</Label>
-              <Input
-                id="fecha_inicio"
-                type="date"
-                value={formulario_asignar.fecha_inicio}
-                onChange={(e) =>
-                  setFormularioAsignar({
-                    ...formulario_asignar,
-                    fecha_inicio: e.target.value,
-                  })
-                }
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              <DatePicker
+                valor={formulario_asignar.fecha_inicio ? new Date(formulario_asignar.fecha_inicio) : undefined}
+                onChange={(fecha) => fecha && setFormularioAsignar({
+                  ...formulario_asignar,
+                  fecha_inicio: fecha.toISOString().split('T')[0],
+                })}
+                placeholder="Selecciona fecha de inicio"
               />
             </div>
 
@@ -1344,12 +1342,10 @@ export default function Tratamientos() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="fecha_cita">Fecha y Hora *</Label>
-              <Input
-                id="fecha_cita"
-                type="datetime-local"
-                value={formulario_cita.fecha}
-                onChange={(e) => setFormularioCita({ ...formulario_cita, fecha: e.target.value })}
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              <DateTimePicker
+                valor={formulario_cita.fecha ? new Date(formulario_cita.fecha) : undefined}
+                onChange={(fecha) => fecha && setFormularioCita({ ...formulario_cita, fecha: fecha.toISOString().slice(0, 16) })}
+                placeholder="Selecciona fecha y hora"
               />
             </div>
 
