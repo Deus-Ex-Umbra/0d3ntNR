@@ -94,7 +94,10 @@ export class FinanzasServicio {
       throw new ConflictException('Esta cita ya tiene un pago asociado');
     }
 
-    await this.cita_repositorio.update(cita.id, { estado_pago: 'pagado' });
+    await this.cita_repositorio.update(cita.id, { 
+      estado_pago: 'pagado',
+      monto_esperado: registrar_pago_dto.monto
+    });
 
     const nuevo_pago = this.pago_repositorio.create({
       fecha: registrar_pago_dto.fecha,
@@ -134,6 +137,12 @@ export class FinanzasServicio {
     if (pago_existente.plan_tratamiento && monto_nuevo !== monto_anterior) {
       await this.planes_servicio.descontarAbono(pago_existente.plan_tratamiento.id, monto_anterior);
       await this.planes_servicio.registrarAbono(pago_existente.plan_tratamiento.id, monto_nuevo);
+    }
+
+    if (pago_existente.cita && actualizar_pago_dto.monto !== undefined) {
+      await this.cita_repositorio.update(pago_existente.cita.id, {
+        monto_esperado: monto_nuevo
+      });
     }
 
     const datos_actualizacion: any = {};
@@ -176,7 +185,10 @@ export class FinanzasServicio {
     }
 
     if (pago.cita) {
-      await this.cita_repositorio.update(pago.cita.id, { estado_pago: 'pendiente' });
+      await this.cita_repositorio.update(pago.cita.id, { 
+        estado_pago: 'pendiente',
+        monto_esperado: 0
+      });
     }
 
     await this.pago_repositorio.remove(pago);
