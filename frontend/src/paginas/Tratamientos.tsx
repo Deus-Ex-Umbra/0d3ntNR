@@ -1136,7 +1136,7 @@ export default function Tratamientos() {
                 <Label htmlFor="hora_inicio">Hora de las Citas *</Label>
                 <TimePicker
                   valor={formulario_asignar.hora_inicio}
-                  onChange={(hora) => setFormularioAsignar({
+                  onChange={(hora: string) => setFormularioAsignar({
                     ...formulario_asignar,
                     hora_inicio: hora,
                   })}
