@@ -70,7 +70,7 @@ export class AgendaServicio {
     }
 
     const estado_anterior = cita_actual.estado_pago;
-    const datos_actualizar: Partial<Cita> = {};
+    const datos_actualizar: any = {};
 
     if (actualizar_cita_dto.fecha !== undefined) {
       datos_actualizar.fecha = actualizar_cita_dto.fecha;
