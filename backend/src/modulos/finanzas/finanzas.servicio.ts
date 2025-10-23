@@ -9,6 +9,7 @@ import { ActualizarPagoDto } from './dto/actualizar-pago.dto';
 import { ActualizarEgresoDto } from './dto/actualizar-egreso.dto';
 import { PlanesTratamientoServicio } from '../tratamientos/planes-tratamiento.servicio';
 import { Cita } from '../agenda/entidades/cita.entidad';
+import { PlanTratamiento } from '../tratamientos/entidades/plan-tratamiento.entidad';
 
 @Injectable()
 export class FinanzasServicio {
@@ -73,8 +74,8 @@ export class FinanzasServicio {
   }
 
   async registrarPago(registrar_pago_dto: RegistrarPagoDto): Promise<Pago> {
-    let cita = null;
-    let plan_tratamiento = null;
+    let cita: Cita | null = null;
+    let plan_tratamiento: PlanTratamiento | null = null;
 
     if (registrar_pago_dto.cita_id) {
       cita = await this.cita_repositorio.findOne({
@@ -106,15 +107,22 @@ export class FinanzasServicio {
       plan_tratamiento = cita.plan_tratamiento;
     }
 
-    const nuevo_pago = this.pago_repositorio.create({
+    const datos_pago: any = {
       fecha: registrar_pago_dto.fecha,
       monto: registrar_pago_dto.monto,
       concepto: registrar_pago_dto.concepto,
-      plan_tratamiento: plan_tratamiento || null,
-      cita: cita ? { id: registrar_pago_dto.cita_id } as any : null,
-    });
+    };
 
-    const pago_guardado = await this.pago_repositorio.save(nuevo_pago);
+    if (plan_tratamiento) {
+      datos_pago.plan_tratamiento = plan_tratamiento;
+    }
+
+    if (cita) {
+      datos_pago.cita = cita;
+    }
+
+    const nuevo_pago = this.pago_repositorio.create(datos_pago);
+    const pago_guardado = (await this.pago_repositorio.save(nuevo_pago)) as unknown as Pago;
 
     if (plan_tratamiento) {
       await this.planes_servicio.registrarAbono(
