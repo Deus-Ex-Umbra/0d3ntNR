@@ -1,11 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNumber, Min, IsDate, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNumber, Min, IsDate, IsOptional, IsString, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RegistrarPagoDto {
-  @ApiProperty({ description: 'ID de la cita a la que se asocia el pago (obligatorio)' })
+  @ApiProperty({ description: 'ID de la cita a la que se asocia el pago (opcional)', required: false })
+  @IsOptional()
   @IsInt()
-  cita_id: number;
+  cita_id?: number;
   
   @ApiProperty()
   @Type(() => Date)
@@ -17,8 +18,8 @@ export class RegistrarPagoDto {
   @Min(0)
   monto: number;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty()
   @IsString()
-  concepto?: string;
+  @IsNotEmpty()
+  concepto: string;
 }

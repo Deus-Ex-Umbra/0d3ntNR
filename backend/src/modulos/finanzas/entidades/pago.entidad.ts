@@ -13,12 +13,12 @@ export class Pago {
   @Column('decimal', { precision: 10, scale: 2 })
   monto: number;
 
-  @Column({ nullable: true })
+  @Column()
   concepto: string;
 
   @ManyToOne(() => PlanTratamiento, (plan) => plan.pagos, { nullable: true, onDelete: 'CASCADE' })
   plan_tratamiento: PlanTratamiento;
 
-  @ManyToOne(() => Cita, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Cita, { nullable: true, onDelete: 'CASCADE' })
   cita: Cita;
 }

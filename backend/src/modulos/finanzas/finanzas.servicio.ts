@@ -73,45 +73,52 @@ export class FinanzasServicio {
   }
 
   async registrarPago(registrar_pago_dto: RegistrarPagoDto): Promise<Pago> {
-    const cita = await this.cita_repositorio.findOne({
-      where: { id: registrar_pago_dto.cita_id },
-      relations: ['paciente', 'plan_tratamiento'],
-    });
+    let cita = null;
+    let plan_tratamiento = null;
 
-    if (!cita) {
-      throw new NotFoundException('La cita especificada no existe');
+    if (registrar_pago_dto.cita_id) {
+      cita = await this.cita_repositorio.findOne({
+        where: { id: registrar_pago_dto.cita_id },
+        relations: ['paciente', 'plan_tratamiento'],
+      });
+
+      if (!cita) {
+        throw new NotFoundException('La cita especificada no existe');
+      }
+
+      if (!cita.paciente) {
+        throw new BadRequestException('No se puede registrar un pago para una cita sin paciente');
+      }
+
+      const pago_existente = await this.pago_repositorio.findOne({
+        where: { cita: { id: registrar_pago_dto.cita_id } },
+      });
+
+      if (pago_existente) {
+        throw new ConflictException('Esta cita ya tiene un pago asociado');
+      }
+
+      await this.cita_repositorio.update(cita.id, { 
+        estado_pago: 'pagado',
+        monto_esperado: registrar_pago_dto.monto
+      });
+
+      plan_tratamiento = cita.plan_tratamiento;
     }
-
-    if (!cita.paciente) {
-      throw new BadRequestException('No se puede registrar un pago para una cita sin paciente');
-    }
-
-    const pago_existente = await this.pago_repositorio.findOne({
-      where: { cita: { id: registrar_pago_dto.cita_id } },
-    });
-
-    if (pago_existente) {
-      throw new ConflictException('Esta cita ya tiene un pago asociado');
-    }
-
-    await this.cita_repositorio.update(cita.id, { 
-      estado_pago: 'pagado',
-      monto_esperado: registrar_pago_dto.monto
-    });
 
     const nuevo_pago = this.pago_repositorio.create({
       fecha: registrar_pago_dto.fecha,
       monto: registrar_pago_dto.monto,
-      concepto: registrar_pago_dto.concepto || 'Pago de cita',
-      plan_tratamiento: cita.plan_tratamiento || null,
-      cita: { id: registrar_pago_dto.cita_id } as any,
+      concepto: registrar_pago_dto.concepto,
+      plan_tratamiento: plan_tratamiento || null,
+      cita: cita ? { id: registrar_pago_dto.cita_id } as any : null,
     });
 
     const pago_guardado = await this.pago_repositorio.save(nuevo_pago);
 
-    if (cita.plan_tratamiento) {
+    if (plan_tratamiento) {
       await this.planes_servicio.registrarAbono(
-        cita.plan_tratamiento.id,
+        plan_tratamiento.id,
         registrar_pago_dto.monto
       );
     }
@@ -238,9 +245,7 @@ export class FinanzasServicio {
         tipo: 'ingreso' as const,
         fecha: p.fecha,
         monto: Number(p.monto),
-        concepto: p.concepto || (p.cita?.paciente 
-          ? `Pago de ${p.cita.paciente.nombre} ${p.cita.paciente.apellidos}`
-          : 'Pago de cita'),
+        concepto: p.concepto,
         cita_id: p.cita?.id,
         plan_tratamiento_id: p.plan_tratamiento?.id,
       })),

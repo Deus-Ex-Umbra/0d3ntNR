@@ -7,7 +7,7 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { finanzasApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -58,8 +58,6 @@ export default function Finanzas() {
   const [datos_grafico, setDatosGrafico] = useState<DatosGrafico[]>([]);
   const [cargando, setCargando] = useState(true);
   const [cargando_grafico, setCargandoGrafico] = useState(false);
-  const [fecha_inicio, setFechaInicio] = useState('');
-  const [fecha_fin, setFechaFin] = useState('');
   
   const [dialogo_ingreso_abierto, setDialogoIngresoAbierto] = useState(false);
   const [dialogo_egreso_abierto, setDialogoEgresoAbierto] = useState(false);
@@ -77,6 +75,12 @@ export default function Finanzas() {
   const [tipo_grafico, setTipoGrafico] = useState<'dia' | 'mes' | 'ano'>('mes');
   const [fecha_grafico, setFechaGrafico] = useState(new Date());
 
+  const [filtros, setFiltros] = useState({
+    fecha_inicio: new Date().toISOString().split('T')[0],
+    fecha_fin: new Date().toISOString().split('T')[0],
+    busqueda: '',
+  });
+
   const [formulario_ingreso, setFormularioIngreso] = useState({
     cita_id: '',
     concepto: '',
@@ -91,7 +95,7 @@ export default function Finanzas() {
   });
 
   useEffect(() => {
-    cargarReporte();
+    cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
     cargarDatosGrafico();
   }, []);
 
@@ -147,7 +151,7 @@ export default function Finanzas() {
   };
 
   const manejarFiltrarPorFechas = () => {
-    if (!fecha_inicio || !fecha_fin) {
+    if (!filtros.fecha_inicio || !filtros.fecha_fin) {
       toast({
         title: 'Error',
         description: 'Debes seleccionar ambas fechas',
@@ -155,13 +159,17 @@ export default function Finanzas() {
       });
       return;
     }
-    cargarReporte(fecha_inicio, fecha_fin);
+    cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
   };
 
   const limpiarFiltros = () => {
-    setFechaInicio('');
-    setFechaFin('');
-    cargarReporte();
+    const hoy = new Date().toISOString().split('T')[0];
+    setFiltros({
+      fecha_inicio: hoy,
+      fecha_fin: hoy,
+      busqueda: '',
+    });
+    cargarReporte(hoy, hoy);
   };
 
   const abrirDialogoIngreso = () => {
@@ -212,10 +220,10 @@ export default function Finanzas() {
   };
 
   const manejarRegistrarIngreso = async () => {
-    if (!formulario_ingreso.cita_id || !formulario_ingreso.fecha || !formulario_ingreso.monto) {
+    if (!formulario_ingreso.concepto || !formulario_ingreso.fecha || !formulario_ingreso.monto) {
       toast({
         title: 'Error',
-        description: 'Cita, fecha y monto son obligatorios',
+        description: 'Concepto, fecha y monto son obligatorios',
         variant: 'destructive',
       });
       return;
@@ -237,7 +245,7 @@ export default function Finanzas() {
         const datos: any = {
           fecha: new Date(formulario_ingreso.fecha),
           monto,
-          concepto: formulario_ingreso.concepto || 'Ingreso por cita',
+          concepto: formulario_ingreso.concepto,
         };
 
         await finanzasApi.actualizarPago(movimiento_seleccionado.id, datos);
@@ -247,21 +255,26 @@ export default function Finanzas() {
         });
       } else {
         const datos: any = {
-          cita_id: parseInt(formulario_ingreso.cita_id),
           fecha: new Date(formulario_ingreso.fecha),
           monto,
-          concepto: formulario_ingreso.concepto || 'Ingreso por cita',
+          concepto: formulario_ingreso.concepto,
         };
+
+        if (formulario_ingreso.cita_id) {
+          datos.cita_id = parseInt(formulario_ingreso.cita_id);
+        }
 
         await finanzasApi.registrarPago(datos);
         toast({
           title: 'Éxito',
-          description: 'Ingreso registrado correctamente. La cita se marcó como pagada.',
+          description: formulario_ingreso.cita_id 
+            ? 'Ingreso registrado correctamente. La cita se marcó como pagada.'
+            : 'Ingreso registrado correctamente.',
         });
       }
 
       setDialogoIngresoAbierto(false);
-      cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+      cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
       cargarDatosGrafico();
     } catch (error: any) {
       console.error('Error al registrar ingreso:', error);
@@ -324,7 +337,7 @@ export default function Finanzas() {
       }
 
       setDialogoEgresoAbierto(false);
-      cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+      cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
       cargarDatosGrafico();
     } catch (error: any) {
       console.error('Error al registrar egreso:', error);
@@ -360,7 +373,7 @@ export default function Finanzas() {
 
       setDialogoConfirmarEliminarAbierto(false);
       setMovimientoAEliminar(null);
-      cargarReporte(fecha_inicio || undefined, fecha_fin || undefined);
+      cargarReporte(filtros.fecha_inicio, filtros.fecha_fin);
       cargarDatosGrafico();
     } catch (error) {
       console.error('Error al eliminar movimiento:', error);
@@ -408,6 +421,21 @@ export default function Finanzas() {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
+    });
+  };
+
+  const formatearHora = (fecha: Date): string => {
+    return new Date(fecha).toLocaleTimeString('es-BO', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatearFechaHora = (fecha: Date): string => {
+    return new Date(fecha).toLocaleString('es-BO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -423,10 +451,40 @@ export default function Finanzas() {
     });
   };
 
-  const opciones_citas: OpcionCombobox[] = citas.map(c => ({
-    valor: c.id.toString(),
-    etiqueta: `${formatearFechaCita(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion} - ${formatearMoneda(c.monto_esperado || 0)}`
-  }));
+  const opciones_citas: OpcionCombobox[] = [
+    { valor: '', etiqueta: 'Ingreso sin cita asociada' },
+    ...citas.map(c => ({
+      valor: c.id.toString(),
+      etiqueta: `${formatearFechaCita(c.fecha)} - ${c.paciente ? `${c.paciente.nombre} ${c.paciente.apellidos}` : c.descripcion} - ${formatearMoneda(c.monto_esperado || 0)}`
+    }))
+  ];
+
+  const agruparMovimientosPorDia = () => {
+    const grupos: { [key: string]: Movimiento[] } = {};
+    
+    const movimientos_filtrados = reporte?.movimientos.filter(mov => {
+      if (filtros.busqueda) {
+        return mov.concepto.toLowerCase().includes(filtros.busqueda.toLowerCase());
+      }
+      return true;
+    }) || [];
+
+    movimientos_filtrados.forEach(mov => {
+      const fecha_str = formatearFecha(mov.fecha);
+      if (!grupos[fecha_str]) {
+        grupos[fecha_str] = [];
+      }
+      grupos[fecha_str].push(mov);
+    });
+
+    Object.keys(grupos).forEach(fecha => {
+      grupos[fecha].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+    });
+
+    return grupos;
+  };
+
+  const movimientos_agrupados = agruparMovimientosPorDia();
 
   if (cargando) {
     return (
@@ -478,57 +536,6 @@ export default function Finanzas() {
               </Dialog>
             </div>
           </div>
-
-          <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <div className="bg-primary/10 p-2 rounded-lg hover:scale-110 transition-transform duration-200">
-                  <Calendar className="h-5 w-5 text-primary" />
-                </div>
-                Filtrar por Fechas
-              </CardTitle>
-              <CardDescription>Selecciona un rango de fechas para filtrar el reporte</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 items-end">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="fecha_inicio">Fecha Inicio</Label>
-                  <Input
-                    id="fecha_inicio"
-                    type="date"
-                    value={fecha_inicio}
-                    onChange={(e) => setFechaInicio(e.target.value)}
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="fecha_fin">Fecha Fin</Label>
-                  <Input
-                    id="fecha_fin"
-                    type="date"
-                    value={fecha_fin}
-                    onChange={(e) => setFechaFin(e.target.value)}
-                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-                <Button 
-                  onClick={manejarFiltrarPorFechas}
-                  className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
-                >
-                  Filtrar
-                </Button>
-                {(fecha_inicio || fecha_fin) && (
-                  <Button 
-                    variant="outline" 
-                    onClick={limpiarFiltros}
-                    className="hover:scale-105 transition-all duration-200"
-                  >
-                    Limpiar
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(34,197,94,0.2)] hover:scale-105 transition-all duration-300">
@@ -712,13 +719,64 @@ export default function Finanzas() {
                 <div>
                   <CardTitle className="text-xl">Historial de Movimientos</CardTitle>
                   <CardDescription>
-                    {reporte?.movimientos.length || 0} movimientos registrados
+                    {Object.values(movimientos_agrupados).flat().length} de {reporte?.movimientos.length || 0} movimientos
+                    {filtros.busqueda && ' (filtrados por búsqueda)'}
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              {!reporte?.movimientos.length ? (
+            <CardContent className="space-y-4">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="busqueda">Buscar por concepto</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="busqueda"
+                      value={filtros.busqueda}
+                      onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
+                      placeholder="Ej: pago, compra, factura..."
+                      className="pl-10 hover:border-primary/50 focus:border-primary transition-all duration-200"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="fecha_inicio">Fecha Inicio</Label>
+                  <Input
+                    id="fecha_inicio"
+                    type="date"
+                    value={filtros.fecha_inicio}
+                    onChange={(e) => setFiltros({ ...filtros, fecha_inicio: e.target.value })}
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="fecha_fin">Fecha Fin</Label>
+                  <Input
+                    id="fecha_fin"
+                    type="date"
+                    value={filtros.fecha_fin}
+                    onChange={(e) => setFiltros({ ...filtros, fecha_fin: e.target.value })}
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+                <Button 
+                  onClick={manejarFiltrarPorFechas}
+                  className="hover:shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200"
+                >
+                  Filtrar
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={limpiarFiltros}
+                  className="hover:scale-105 transition-all duration-200"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Limpiar
+                </Button>
+              </div>
+
+              {Object.keys(movimientos_agrupados).length === 0 ? (
                 <div className="text-center py-12 space-y-4">
                   <div className="mx-auto w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center hover:scale-110 hover:rotate-12 transition-all duration-300">
                     <AlertCircle className="h-8 w-8 text-muted-foreground" />
@@ -733,77 +791,89 @@ export default function Finanzas() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {reporte.movimientos.map((movimiento) => (
-                    <div
-                      key={`${movimiento.tipo}-${movimiento.id}`}
-                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className={`p-2 rounded-lg hover:scale-110 transition-transform duration-200 ${
-                          movimiento.tipo === 'ingreso' 
-                            ? 'bg-green-500/10' 
-                            : 'bg-red-500/10'
-                        }`}>
-                          {movimiento.tipo === 'ingreso' ? (
-                            <TrendingUp className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <TrendingDown className="h-5 w-5 text-red-500" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-foreground">
-                            {movimiento.concepto}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatearFecha(movimiento.fecha)}
-                          </p>
-                          {(movimiento.cita_id || movimiento.plan_tratamiento_id) && (
-                            <div className="flex gap-2 mt-1">
-                              {movimiento.cita_id && (
-                                <Badge variant="outline" className="text-xs">
-                                  Cita #{movimiento.cita_id}
-                                </Badge>
-                              )}
-                              {movimiento.plan_tratamiento_id && (
-                                <Badge variant="outline" className="text-xs">
-                                  Plan #{movimiento.plan_tratamiento_id}
-                                </Badge>
-                              )}
+                <div className="space-y-6">
+                  {Object.entries(movimientos_agrupados).map(([fecha, movimientos_del_dia]) => (
+                    <div key={fecha} className="space-y-3">
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 sticky top-0 bg-background/95 backdrop-blur-sm py-2 z-10">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        {fecha}
+                      </h3>
+                      <div className="space-y-2 pl-7">
+                        {movimientos_del_dia.map((movimiento) => (
+                          <div
+                            key={`${movimiento.tipo}-${movimiento.id}`}
+                            className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/50 hover:scale-[1.02] hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className={`p-2 rounded-lg hover:scale-110 transition-transform duration-200 ${
+                                movimiento.tipo === 'ingreso' 
+                                  ? 'bg-green-500/10' 
+                                  : 'bg-red-500/10'
+                              }`}>
+                                {movimiento.tipo === 'ingreso' ? (
+                                  <TrendingUp className="h-5 w-5 text-green-500" />
+                                ) : (
+                                  <TrendingDown className="h-5 w-5 text-red-500" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-foreground">
+                                    {movimiento.concepto}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    • {formatearHora(movimiento.fecha)}
+                                  </p>
+                                </div>
+                                {(movimiento.cita_id || movimiento.plan_tratamiento_id) && (
+                                  <div className="flex gap-2 mt-1">
+                                    {movimiento.cita_id && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Cita #{movimiento.cita_id}
+                                      </Badge>
+                                    )}
+                                    {movimiento.plan_tratamiento_id && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Plan #{movimiento.plan_tratamiento_id}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <div className={`text-lg font-bold ${
+                                movimiento.tipo === 'ingreso' 
+                                  ? 'text-green-500' 
+                                  : 'text-red-500'
+                              }`}>
+                                {movimiento.tipo === 'ingreso' ? '+' : '-'}
+                                {formatearMoneda(movimiento.monto)}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        <div className={`text-lg font-bold ${
-                          movimiento.tipo === 'ingreso' 
-                            ? 'text-green-500' 
-                            : 'text-red-500'
-                        }`}>
-                          {movimiento.tipo === 'ingreso' ? '+' : '-'}
-                          {formatearMoneda(movimiento.monto)}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 ml-4">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => movimiento.tipo === 'ingreso' 
-                            ? abrirEditarIngreso(movimiento) 
-                            : abrirEditarEgreso(movimiento)
-                          }
-                          className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
-                          title="Editar"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => abrirDialogoConfirmarEliminar(movimiento)}
-                          className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => movimiento.tipo === 'ingreso' 
+                                  ? abrirEditarIngreso(movimiento) 
+                                  : abrirEditarEgreso(movimiento)
+                                }
+                                className="hover:bg-primary/20 hover:text-primary hover:scale-110 transition-all duration-200"
+                                title="Editar"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => abrirDialogoConfirmarEliminar(movimiento)}
+                                className="hover:bg-destructive/20 hover:text-destructive hover:scale-110 transition-all duration-200"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -823,15 +893,26 @@ export default function Finanzas() {
             <DialogDescription>
               {modo_edicion_ingreso 
                 ? 'Modifica los datos del ingreso'
-                : 'Registra un pago asociado a una cita con paciente'
+                : 'Registra un ingreso con o sin cita asociada'
               }
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="concepto_ingreso">Concepto *</Label>
+              <Input
+                id="concepto_ingreso"
+                placeholder="Ej: Pago de consulta, Dinero encontrado, Ingreso extra"
+                value={formulario_ingreso.concepto}
+                onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, concepto: e.target.value })}
+                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+              />
+            </div>
+
             {!modo_edicion_ingreso && (
               <div className="space-y-2">
-                <Label htmlFor="cita">Cita *</Label>
+                <Label htmlFor="cita">Cita (opcional)</Label>
                 {cargando_datos ? (
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -845,21 +926,10 @@ export default function Finanzas() {
                   />
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Solo se muestran citas con paciente que no están pagadas
+                  Puedes asociar este ingreso a una cita existente o dejarlo sin cita
                 </p>
               </div>
             )}
-
-            <div className="space-y-2">
-              <Label htmlFor="concepto_ingreso">Concepto (opcional)</Label>
-              <Input
-                id="concepto_ingreso"
-                placeholder="Ej: Pago de consulta, Tratamiento completado"
-                value={formulario_ingreso.concepto}
-                onChange={(e) => setFormularioIngreso({ ...formulario_ingreso, concepto: e.target.value })}
-                className="hover:border-primary/50 focus:border-primary transition-all duration-200"
-              />
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1006,7 +1076,7 @@ export default function Finanzas() {
             <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-2">
               <p className="font-semibold text-foreground">{movimiento_a_eliminar.concepto}</p>
               <p className="text-sm text-muted-foreground">
-                {formatearFecha(movimiento_a_eliminar.fecha)}
+                {formatearFechaHora(movimiento_a_eliminar.fecha)}
               </p>
               <p className={`text-lg font-bold ${
                 movimiento_a_eliminar.tipo === 'ingreso' ? 'text-green-500' : 'text-red-500'
