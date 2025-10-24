@@ -22,4 +22,10 @@ export class Tratamiento {
 
   @Column({ default: 0 })
   intervalo_meses: number;
+
+  @Column({ default: 0 })
+  horas_aproximadas_citas: number;
+
+  @Column({ default: 30 })
+  minutos_aproximados_citas: number;
 }

@@ -17,13 +17,23 @@ export class AgendaServicio {
     private readonly finanzas_servicio: FinanzasServicio,
   ) {}
 
-  async validarDisponibilidad(fecha: Date, cita_id_excluir?: number): Promise<{ disponible: boolean; citas_conflicto: Cita[] }> {
-    const margen_minutos = 30;
+  private calcularDuracionEnMinutos(horas: number, minutos: number): number {
+    return (horas * 60) + minutos;
+  }
+
+  async validarDisponibilidad(
+    fecha: Date, 
+    horas: number = 0, 
+    minutos: number = 30, 
+    cita_id_excluir?: number
+  ): Promise<{ disponible: boolean; citas_conflicto: Cita[] }> {
+    const duracion_total_minutos = this.calcularDuracionEnMinutos(horas, minutos);
+    
     const fecha_inicio = new Date(fecha);
-    fecha_inicio.setMinutes(fecha_inicio.getMinutes() - margen_minutos);
+    fecha_inicio.setMinutes(fecha_inicio.getMinutes() - duracion_total_minutos);
     
     const fecha_fin = new Date(fecha);
-    fecha_fin.setMinutes(fecha_fin.getMinutes() + margen_minutos);
+    fecha_fin.setMinutes(fecha_fin.getMinutes() + duracion_total_minutos);
 
     const condiciones: any = {
       fecha: Between(fecha_inicio, fecha_fin)
@@ -45,13 +55,24 @@ export class AgendaServicio {
   }
 
   async crear(crear_cita_dto: CrearCitaDto): Promise<Cita> {
-    const { paciente_id, plan_tratamiento_id, estado_pago, monto_esperado, ...cita_data } = crear_cita_dto;
+    const { 
+      paciente_id, 
+      plan_tratamiento_id, 
+      estado_pago, 
+      monto_esperado, 
+      horas_aproximadas, 
+      minutos_aproximados, 
+      ...cita_data 
+    } = crear_cita_dto;
     
     if (!paciente_id && (estado_pago || monto_esperado)) {
       throw new BadRequestException('Las citas sin paciente no pueden tener estado de pago ni monto esperado');
     }
 
-    const validacion = await this.validarDisponibilidad(cita_data.fecha);
+    const horas = horas_aproximadas !== undefined ? horas_aproximadas : 0;
+    const minutos = minutos_aproximados !== undefined ? minutos_aproximados : 30;
+
+    const validacion = await this.validarDisponibilidad(cita_data.fecha, horas, minutos);
     
     if (!validacion.disponible) {
       const detalles_conflictos = validacion.citas_conflicto.map(cita => {
@@ -69,11 +90,15 @@ export class AgendaServicio {
       }).join('; ');
 
       throw new ConflictException(
-        `Ya existe${validacion.citas_conflicto.length > 1 ? 'n' : ''} ${validacion.citas_conflicto.length} cita${validacion.citas_conflicto.length > 1 ? 's' : ''} programada${validacion.citas_conflicto.length > 1 ? 's' : ''} en ese horario (±30 min): ${detalles_conflictos}`
+        `Ya existe${validacion.citas_conflicto.length > 1 ? 'n' : ''} ${validacion.citas_conflicto.length} cita${validacion.citas_conflicto.length > 1 ? 's' : ''} programada${validacion.citas_conflicto.length > 1 ? 's' : ''} en ese horario: ${detalles_conflictos}`
       );
     }
 
-    const nueva_cita = this.cita_repositorio.create(cita_data);
+    const nueva_cita = this.cita_repositorio.create({
+      ...cita_data,
+      horas_aproximadas: horas,
+      minutos_aproximados: minutos,
+    });
 
     if (paciente_id) {
       nueva_cita.paciente = { id: paciente_id } as Paciente;
@@ -119,8 +144,20 @@ export class AgendaServicio {
       }
     }
 
-    if (actualizar_cita_dto.fecha !== undefined) {
-      const validacion = await this.validarDisponibilidad(actualizar_cita_dto.fecha, id);
+    if (
+      actualizar_cita_dto.fecha !== undefined || 
+      actualizar_cita_dto.horas_aproximadas !== undefined || 
+      actualizar_cita_dto.minutos_aproximados !== undefined
+    ) {
+      const nueva_fecha = actualizar_cita_dto.fecha || cita_actual.fecha;
+      const nuevas_horas = actualizar_cita_dto.horas_aproximadas !== undefined 
+        ? actualizar_cita_dto.horas_aproximadas 
+        : cita_actual.horas_aproximadas;
+      const nuevos_minutos = actualizar_cita_dto.minutos_aproximados !== undefined 
+        ? actualizar_cita_dto.minutos_aproximados 
+        : cita_actual.minutos_aproximados;
+      
+      const validacion = await this.validarDisponibilidad(nueva_fecha, nuevas_horas, nuevos_minutos, id);
       
       if (!validacion.disponible) {
         const detalles_conflictos = validacion.citas_conflicto.map(cita => {
@@ -138,7 +175,7 @@ export class AgendaServicio {
         }).join('; ');
 
         throw new ConflictException(
-          `Ya existe${validacion.citas_conflicto.length > 1 ? 'n' : ''} ${validacion.citas_conflicto.length} cita${validacion.citas_conflicto.length > 1 ? 's' : ''} programada${validacion.citas_conflicto.length > 1 ? 's' : ''} en ese horario (±30 min): ${detalles_conflictos}`
+          `Ya existe${validacion.citas_conflicto.length > 1 ? 'n' : ''} ${validacion.citas_conflicto.length} cita${validacion.citas_conflicto.length > 1 ? 's' : ''} programada${validacion.citas_conflicto.length > 1 ? 's' : ''} en ese horario: ${detalles_conflictos}`
         );
       }
     }
@@ -151,6 +188,12 @@ export class AgendaServicio {
     }
     if (actualizar_cita_dto.descripcion !== undefined) {
       datos_actualizar.descripcion = actualizar_cita_dto.descripcion;
+    }
+    if (actualizar_cita_dto.horas_aproximadas !== undefined) {
+      datos_actualizar.horas_aproximadas = actualizar_cita_dto.horas_aproximadas;
+    }
+    if (actualizar_cita_dto.minutos_aproximados !== undefined) {
+      datos_actualizar.minutos_aproximados = actualizar_cita_dto.minutos_aproximados;
     }
 
     if (actualizar_cita_dto.paciente_id !== undefined) {

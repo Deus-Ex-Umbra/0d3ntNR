@@ -33,4 +33,16 @@ export class CrearTratamientoDto {
   @IsInt()
   @Min(0)
   intervalo_meses?: number;
+
+  @ApiProperty({ description: 'Horas aproximadas de cada cita', default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  horas_aproximadas_citas?: number;
+
+  @ApiProperty({ description: 'Minutos aproximados de cada cita', default: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minutos_aproximados_citas?: number;
 }

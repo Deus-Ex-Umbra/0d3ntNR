@@ -19,6 +19,12 @@ export class Cita {
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
   monto_esperado: number;
 
+  @Column({ default: 0 })
+  horas_aproximadas: number;
+
+  @Column({ default: 30 })
+  minutos_aproximados: number;
+
   @ManyToOne(() => Paciente, { nullable: true, onDelete: 'SET NULL' })
   paciente: Paciente;
 

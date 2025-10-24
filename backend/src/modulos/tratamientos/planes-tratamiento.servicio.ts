@@ -31,6 +31,8 @@ export class PlanesTratamientoServicio {
     const intervalo_dias = tratamiento_plantilla.intervalo_dias || 0;
     const intervalo_semanas = tratamiento_plantilla.intervalo_semanas || 0;
     const intervalo_meses = tratamiento_plantilla.intervalo_meses || 0;
+    const horas_citas = tratamiento_plantilla.horas_aproximadas_citas || 0;
+    const minutos_citas = tratamiento_plantilla.minutos_aproximados_citas || 30;
     
     const fechas_citas: Date[] = [];
     for (let i = 0; i < tratamiento_plantilla.numero_citas; i++) {
@@ -46,7 +48,7 @@ export class PlanesTratamientoServicio {
     const conflictos: Array<{ fecha: Date; citas_conflicto: Cita[] }> = [];
     
     for (const fecha of fechas_citas) {
-      const validacion = await this.agenda_servicio.validarDisponibilidad(fecha);
+      const validacion = await this.agenda_servicio.validarDisponibilidad(fecha, horas_citas, minutos_citas);
       if (!validacion.disponible) {
         conflictos.push({
           fecha,
@@ -99,6 +101,8 @@ export class PlanesTratamientoServicio {
                 fecha: fechas_citas[i],
                 descripcion: `${tratamiento_plantilla.nombre} - Cita ${i + 1}`,
                 estado_pago: 'pendiente',
+                horas_aproximadas: horas_citas,
+                minutos_aproximados: minutos_citas,
             })
         );
     }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDate, IsInt, IsOptional, IsString, IsNumber, IsIn, ValidateIf } from 'class-validator';
+import { IsDate, IsInt, IsOptional, IsString, IsNumber, IsIn, ValidateIf, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CrearCitaDto {
@@ -33,4 +33,16 @@ export class CrearCitaDto {
   @IsOptional()
   @IsNumber()
   monto_esperado?: number;
+
+  @ApiProperty({ required: false, description: 'Horas aproximadas de duración', default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  horas_aproximadas?: number;
+
+  @ApiProperty({ required: false, description: 'Minutos aproximados de duración', default: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minutos_aproximados?: number;
 }
