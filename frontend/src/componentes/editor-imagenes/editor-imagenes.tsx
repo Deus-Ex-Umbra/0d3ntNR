@@ -115,6 +115,7 @@ export function EditorImagenes({
   const [dialogo_versiones_abierto, setDialogoVersionesAbierto] = useState(false);
   
   const stage_ref = useRef<any>(null);
+  const layer_dibujo_ref = useRef<any>(null);
 
   useEffect(() => {
     if (abierto) {
@@ -203,20 +204,45 @@ export function EditorImagenes({
   const handleMouseDown = (e: any) => {
     if (herramienta_actual.tipo === 'move') return;
     
-    guardarEstadoHistorial();
-    setDibujando(true);
-    
     const pos = e.target.getStage().getPointerPosition();
     const punto_ajustado = {
       x: (pos.x - offset.x) / zoom,
       y: (pos.y - offset.y) / zoom,
     };
 
-    if (herramienta_actual.tipo === 'pencil' || herramienta_actual.tipo === 'eraser') {
+    if (herramienta_actual.tipo === 'eraser') {
+      guardarEstadoHistorial();
+      setDibujando(true);
+      
+      const objetos_filtrados = objetos.filter(obj => {
+        if (obj.tipo === 'pencil' || obj.tipo === 'eraser') {
+          if (!obj.puntos) return true;
+          
+          for (let i = 0; i < obj.puntos.length; i += 2) {
+            const px = obj.puntos[i];
+            const py = obj.puntos[i + 1];
+            const distancia = Math.sqrt(
+              Math.pow(px - punto_ajustado.x, 2) + 
+              Math.pow(py - punto_ajustado.y, 2)
+            );
+            
+            if (distancia < herramienta_actual.grosor * 2) {
+              return false;
+            }
+          }
+        }
+        return true;
+      });
+      
+      setObjetos(objetos_filtrados);
+    } else if (herramienta_actual.tipo === 'pencil') {
+      guardarEstadoHistorial();
+      setDibujando(true);
+      
       const nuevo_objeto: ObjetoCanvas = {
         tipo: herramienta_actual.tipo,
         puntos: [punto_ajustado.x, punto_ajustado.y],
-        color: herramienta_actual.tipo === 'eraser' ? '#FFFFFF' : herramienta_actual.color,
+        color: herramienta_actual.color,
         grosor: herramienta_actual.grosor,
         opacidad: herramienta_actual.opacidad,
       };
@@ -234,11 +260,35 @@ export function EditorImagenes({
       y: (pos.y - offset.y) / zoom,
     };
 
-    const ultimo_objeto = objetos[objetos.length - 1];
-    if (ultimo_objeto.tipo === 'pencil' || ultimo_objeto.tipo === 'eraser') {
-      const nuevos_puntos = ultimo_objeto.puntos!.concat([punto_ajustado.x, punto_ajustado.y]);
-      const objetos_actualizados = objetos.slice(0, -1);
-      setObjetos([...objetos_actualizados, { ...ultimo_objeto, puntos: nuevos_puntos }]);
+    if (herramienta_actual.tipo === 'eraser') {
+      const objetos_filtrados = objetos.filter(obj => {
+        if (obj.tipo === 'pencil' || obj.tipo === 'eraser') {
+          if (!obj.puntos) return true;
+          
+          for (let i = 0; i < obj.puntos.length; i += 2) {
+            const px = obj.puntos[i];
+            const py = obj.puntos[i + 1];
+            const distancia = Math.sqrt(
+              Math.pow(px - punto_ajustado.x, 2) + 
+              Math.pow(py - punto_ajustado.y, 2)
+            );
+            
+            if (distancia < herramienta_actual.grosor * 2) {
+              return false;
+            }
+          }
+        }
+        return true;
+      });
+      
+      setObjetos(objetos_filtrados);
+    } else if (herramienta_actual.tipo === 'pencil') {
+      const ultimo_objeto = objetos[objetos.length - 1];
+      if (ultimo_objeto && ultimo_objeto.tipo === 'pencil') {
+        const nuevos_puntos = ultimo_objeto.puntos!.concat([punto_ajustado.x, punto_ajustado.y]);
+        const objetos_actualizados = objetos.slice(0, -1);
+        setObjetos([...objetos_actualizados, { ...ultimo_objeto, puntos: nuevos_puntos }]);
+      }
     }
   };
 
@@ -306,7 +356,8 @@ export function EditorImagenes({
     
     setGuardando(true);
     try {
-      const imagen_resultado = stage_ref.current.toDataURL().split(',')[1];
+      const uri = stage_ref.current.toDataURL();
+      const imagen_resultado = uri.split(',')[1];
       
       if (version_editar) {
         await edicionesImagenesApi.actualizar(version_editar.id, {
@@ -407,7 +458,7 @@ export function EditorImagenes({
   };
 
   const renderizarObjeto = (obj: ObjetoCanvas, index: number) => {
-    if (obj.tipo === 'pencil' || obj.tipo === 'eraser') {
+    if (obj.tipo === 'pencil') {
       return (
         <Line
           key={index}
@@ -417,7 +468,6 @@ export function EditorImagenes({
           tension={0.5}
           lineCap="round"
           lineJoin="round"
-          globalCompositeOperation={obj.tipo === 'eraser' ? 'destination-out' : 'source-over'}
           opacity={obj.opacidad}
         />
       );
@@ -684,6 +734,8 @@ export function EditorImagenes({
                       height={dimensiones_imagen.alto}
                     />
                   )}
+                </Layer>
+                <Layer ref={layer_dibujo_ref}>
                   {objetos.map((obj, i) => renderizarObjeto(obj, i))}
                 </Layer>
               </Stage>
