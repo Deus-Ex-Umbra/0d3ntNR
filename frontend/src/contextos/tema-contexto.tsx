@@ -20,8 +20,6 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // Remover todas las clases de tema
     root.classList.remove('dark', 'blue');
     
     let tema_aplicar: 'claro' | 'oscuro' | 'azul' = 'oscuro';

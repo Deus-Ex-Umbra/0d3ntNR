@@ -6,7 +6,7 @@ import Registro from './paginas/Registro';
 import Inicio from './paginas/Inicio';
 import Pacientes from './paginas/Pacientes';
 import Agenda from './paginas/Agenda';
-import Odontograma from './paginas/Odontograma';
+import EdicionImagenes from './paginas/EdicionImagenes';
 import Tratamientos from './paginas/Tratamientos';
 import Finanzas from './paginas/Finanzas';
 import Configuracion from './paginas/Configuracion';
@@ -101,10 +101,10 @@ function App() {
               }
             />
             <Route
-              path="/odontograma"
+              path="/edicion-imagenes"
               element={
                 <RutaProtegida>
-                  <Odontograma />
+                  <EdicionImagenes />
                 </RutaProtegida>
               }
             />

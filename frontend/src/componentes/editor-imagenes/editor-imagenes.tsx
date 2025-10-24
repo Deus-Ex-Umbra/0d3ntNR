@@ -48,6 +48,13 @@ interface EditorImagenesProps {
   abierto: boolean;
   onCerrar: () => void;
   onGuardar?: () => void;
+  version_editar?: {
+    id: number;
+    nombre?: string;
+    descripcion?: string;
+    version: number;
+    datos_canvas?: { objetos: ObjetoCanvas[] };
+  };
 }
 
 interface Simbologia {
@@ -75,7 +82,8 @@ export function EditorImagenes({
   tipo_mime,
   abierto, 
   onCerrar,
-  onGuardar
+  onGuardar,
+  version_editar
 }: EditorImagenesProps) {
   const [herramienta_actual, setHerramientaActual] = useState<Herramienta>({
     tipo: 'pencil',
@@ -113,8 +121,24 @@ export function EditorImagenes({
       cargarImagen();
       cargarSimbologias();
       cargarVersiones();
+      
+      if (version_editar) {
+        if (version_editar.datos_canvas && (version_editar.datos_canvas as any).objetos) {
+          setObjetos((version_editar.datos_canvas as any).objetos);
+          setHistorialDeshacer([]);
+          setHistorialRehacer([]);
+        }
+        setNombreVersion(version_editar.nombre || `Versión ${version_editar.version}`);
+        setDescripcionVersion(version_editar.descripcion || '');
+      } else {
+        setObjetos([]);
+        setHistorialDeshacer([]);
+        setHistorialRehacer([]);
+        setNombreVersion('');
+        setDescripcionVersion('');
+      }
     }
-  }, [abierto, archivo_base64]);
+  }, [abierto, archivo_base64, version_editar]);
 
   const cargarImagen = () => {
     const img = new window.Image();
@@ -270,8 +294,10 @@ export function EditorImagenes({
   };
 
   const abrirDialogoGuardar = () => {
-    setNombreVersion(`Edición ${versiones.length + 1}`);
-    setDescripcionVersion('');
+    if (!version_editar) {
+      setNombreVersion(`Edición ${versiones.length + 1}`);
+      setDescripcionVersion('');
+    }
     setDialogoGuardarAbierto(true);
   };
 
@@ -282,18 +308,32 @@ export function EditorImagenes({
     try {
       const imagen_resultado = stage_ref.current.toDataURL().split(',')[1];
       
-      await edicionesImagenesApi.crear({
-        archivo_original_id: archivo_id,
-        nombre: nombre_version.trim() || undefined,
-        descripcion: descripcion_version.trim() || undefined,
-        datos_canvas: { objetos },
-        imagen_resultado_base64: imagen_resultado,
-      });
-      
-      toast({
-        title: 'Versión guardada',
-        description: 'La edición se guardó correctamente',
-      });
+      if (version_editar) {
+        await edicionesImagenesApi.actualizar(version_editar.id, {
+          nombre: nombre_version.trim() || undefined,
+          descripcion: descripcion_version.trim() || undefined,
+          datos_canvas: { objetos },
+          imagen_resultado_base64: imagen_resultado,
+        });
+        
+        toast({
+          title: 'Versión actualizada',
+          description: 'Los cambios se guardaron correctamente',
+        });
+      } else {
+        await edicionesImagenesApi.crear({
+          archivo_original_id: archivo_id,
+          nombre: nombre_version.trim() || undefined,
+          descripcion: descripcion_version.trim() || undefined,
+          datos_canvas: { objetos },
+          imagen_resultado_base64: imagen_resultado,
+        });
+        
+        toast({
+          title: 'Versión guardada',
+          description: 'La edición se guardó correctamente',
+        });
+      }
       
       setDialogoGuardarAbierto(false);
       await cargarVersiones();
@@ -388,20 +428,27 @@ export function EditorImagenes({
 
   return (
     <Dialog open={abierto} onOpenChange={onCerrar}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0 [&>button]:hidden">
         <DialogHeader className="p-6 pb-4 border-b">
           <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-xl">Editor de Imágenes</DialogTitle>
+            <div className="flex-1 pr-12">
+              <DialogTitle className="text-xl">
+                {version_editar ? 'Editar Versión' : 'Editor de Imágenes'}
+              </DialogTitle>
               <DialogDescription className="mt-1">
                 {archivo_nombre}
+                {version_editar && (
+                  <Badge variant="outline" className="ml-2">
+                    v{version_editar.version}
+                  </Badge>
+                )}
               </DialogDescription>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={onCerrar}
-              className="hover:bg-destructive/20 hover:text-destructive"
+              className="hover:bg-destructive/20 hover:text-destructive flex-shrink-0"
             >
               <X className="h-5 w-5" />
             </Button>
@@ -573,20 +620,22 @@ export function EditorImagenes({
               </div>
 
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDialogoVersionesAbierto(true)}
-                  title="Ver versiones"
-                >
-                  <History className="h-4 w-4 mr-2" />
-                  Versiones
-                  {versiones.length > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {versiones.length}
-                    </Badge>
-                  )}
-                </Button>
+                {!version_editar && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDialogoVersionesAbierto(true)}
+                    title="Ver versiones"
+                  >
+                    <History className="h-4 w-4 mr-2" />
+                    Versiones
+                    {versiones.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {versiones.length}
+                      </Badge>
+                    )}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -607,10 +656,10 @@ export function EditorImagenes({
                 <Button
                   size="sm"
                   onClick={abrirDialogoGuardar}
-                  title="Guardar versión"
+                  title={version_editar ? "Guardar cambios" : "Guardar versión"}
                 >
                   <Save className="h-4 w-4 mr-2" />
-                  Guardar Versión
+                  {version_editar ? 'Guardar Cambios' : 'Guardar Versión'}
                 </Button>
               </div>
             </div>
@@ -646,9 +695,13 @@ export function EditorImagenes({
       <Dialog open={dialogo_guardar_abierto} onOpenChange={setDialogoGuardarAbierto}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Guardar Nueva Versión</DialogTitle>
+            <DialogTitle>
+              {version_editar ? 'Actualizar Versión' : 'Guardar Nueva Versión'}
+            </DialogTitle>
             <DialogDescription>
-              Guarda esta edición como una nueva versión
+              {version_editar 
+                ? 'Actualiza los cambios realizados en esta versión'
+                : 'Guarda esta edición como una nueva versión'}
             </DialogDescription>
           </DialogHeader>
 
@@ -686,7 +739,7 @@ export function EditorImagenes({
             <Button onClick={guardarVersion} disabled={guardando}>
               {guardando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Save className="mr-2 h-4 w-4" />
-              Guardar
+              {version_editar ? 'Actualizar' : 'Guardar'}
             </Button>
           </DialogFooter>
         </DialogContent>
