@@ -14,6 +14,7 @@ import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
 import { GestionCatalogo } from '@/componentes/catalogo/gestion-catalogo';
+import { MarkdownRenderer } from '@/componentes/markdown-rendered';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -700,9 +701,7 @@ export default function Configuracion() {
 
                     {frase_motivacional && (
                       <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <p className="text-foreground italic leading-relaxed">
-                          "{frase_motivacional}"
-                        </p>
+                        <MarkdownRenderer contenido={frase_motivacional} />
                       </div>
                     )}
                   </div>

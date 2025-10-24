@@ -4,6 +4,7 @@ import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { Card, CardContent, CardHeader, CardTitle } from '@/componentes/ui/card';
 import { Calendar, Users, DollarSign, FileText, TrendingUp, Clock, Sparkles, Loader2, TrendingDown } from 'lucide-react';
 import { estadisticasApi, asistenteApi } from '@/lib/api';
+import { MarkdownRenderer } from '@/componentes/markdown-rendered';
 
 interface Transaccion {
   id: number;
@@ -233,10 +234,8 @@ export default function Inicio() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-primary mb-1">Mensaje del día</h3>
-                  <p className="text-base text-foreground leading-relaxed">
-                    {frase_motivacional}
-                  </p>
+                  <h3 className="text-sm font-semibold text-primary mb-2">Mensaje del día</h3>
+                  <MarkdownRenderer contenido={frase_motivacional} />
                 </div>
               </div>
             </div>
