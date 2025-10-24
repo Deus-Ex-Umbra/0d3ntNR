@@ -26,7 +26,7 @@ export class EdicionesImagenesServicio {
       throw new NotFoundException('Archivo no encontrado');
     }
 
-    let edicion_padre = null;
+    let edicion_padre: EdicionImagen | null = null;
     let version = 1;
 
     if (dto.edicion_padre_id) {

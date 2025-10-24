@@ -16,6 +16,7 @@ import { EstadisticasModule } from './modulos/estadisticas/estadisticas.modulo';
 import { CatalogoModule } from './modulos/catalogo/catalogo.modulo';
 import { ArchivosAdjuntosModule } from './modulos/archivos-adjuntos/archivos-adjuntos.modulo';
 import { EdicionesImagenesModule } from './modulos/ediciones-imagenes/ediciones-imagenes.modulo';
+import { OdontogramaModule } from './modulos/odontograma/odontograma.modulo';
 import { Paciente } from './modulos/pacientes/entidades/paciente.entidad';
 import { PacienteAlergia } from './modulos/pacientes/entidades/paciente-alergia.entidad';
 import { PacienteEnfermedad } from './modulos/pacientes/entidades/paciente-enfermedad.entidad';
@@ -34,6 +35,7 @@ import { ColorCategoria } from './modulos/catalogo/entidades/color-categoria.ent
 import { Simbologia } from './modulos/catalogo/entidades/simbologia.entidad';
 import { ArchivoAdjunto } from './modulos/archivos-adjuntos/entidades/archivo-adjunto.entidad';
 import { EdicionImagen } from './modulos/ediciones-imagenes/entidades/edicion-imagen.entidad';
+import { Odontograma } from './modulos/odontograma/entidades/odontograma.entidad';
 
 @Module({
   imports: [
@@ -60,6 +62,7 @@ import { EdicionImagen } from './modulos/ediciones-imagenes/entidades/edicion-im
         Simbologia,
         ArchivoAdjunto,
         EdicionImagen,
+        Odontograma,
       ],
       synchronize: true,
     }),
@@ -76,6 +79,7 @@ import { EdicionImagen } from './modulos/ediciones-imagenes/entidades/edicion-im
     CatalogoModule,
     ArchivosAdjuntosModule,
     EdicionesImagenesModule,
+    OdontogramaModule,
   ],
   controllers: [AppControlador],
   providers: [AppServicio],
