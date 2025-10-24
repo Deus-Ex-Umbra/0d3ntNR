@@ -15,7 +15,8 @@ import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DatePicker } from '@/componentes/ui/date-picker';
-import { formatearFechaISO, inicioDelDia, finDelDia } from '@/lib/utilidades';
+import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { formatearFechaISO } from '@/lib/utilidades';
 
 interface Movimiento {
   id: number;
@@ -162,6 +163,24 @@ export default function Finanzas() {
     }
   };
 
+  const abrirDialogoFiltros = () => {
+    if (!filtros.fecha_inicio && !filtros.fecha_fin) {
+      const ahora = new Date();
+      const inicio = new Date(ahora);
+      inicio.setHours(0, 0, 0, 0);
+      
+      const fin = new Date(ahora);
+      fin.setHours(23, 59, 59, 999);
+      
+      setFiltros({
+        ...filtros,
+        fecha_inicio: inicio,
+        fecha_fin: fin,
+      });
+    }
+    setDialogoFiltrosAbierto(true);
+  };
+
   const manejarFiltrarPorFechas = async () => {
     if (!filtros.fecha_inicio || !filtros.fecha_fin) {
       toast({
@@ -173,11 +192,8 @@ export default function Finanzas() {
     }
 
     try {
-      const inicio = inicioDelDia(filtros.fecha_inicio);
-      const fin = finDelDia(filtros.fecha_fin);
-      
-      const inicio_str = formatearFechaISO(inicio);
-      const fin_str = formatearFechaISO(fin);
+      const inicio_str = formatearFechaISO(filtros.fecha_inicio);
+      const fin_str = formatearFechaISO(filtros.fecha_fin);
       
       const datos = await finanzasApi.obtenerReporte(inicio_str, fin_str);
       setReporte(datos);
@@ -186,7 +202,7 @@ export default function Finanzas() {
       
       toast({
         title: 'Filtros aplicados',
-        description: `Mostrando movimientos desde ${formatearFecha(inicio)} hasta ${formatearFecha(fin)}`,
+        description: `Mostrando movimientos desde ${formatearFechaHora(filtros.fecha_inicio)} hasta ${formatearFechaHora(filtros.fecha_fin)}`,
       });
     } catch (error) {
       console.error('Error al filtrar:', error);
@@ -507,6 +523,26 @@ export default function Finanzas() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const manejarCambioFechaInicio = (fecha: Date | undefined) => {
+    if (fecha && !filtros.fecha_inicio) {
+      const nueva_fecha = new Date(fecha);
+      nueva_fecha.setHours(0, 0, 0, 0);
+      setFiltros({ ...filtros, fecha_inicio: nueva_fecha });
+    } else {
+      setFiltros({ ...filtros, fecha_inicio: fecha });
+    }
+  };
+
+  const manejarCambioFechaFin = (fecha: Date | undefined) => {
+    if (fecha && !filtros.fecha_fin) {
+      const nueva_fecha = new Date(fecha);
+      nueva_fecha.setHours(23, 59, 59, 999);
+      setFiltros({ ...filtros, fecha_fin: nueva_fecha });
+    } else {
+      setFiltros({ ...filtros, fecha_fin: fecha });
+    }
   };
 
   const opciones_citas: OpcionCombobox[] = [
@@ -841,7 +877,7 @@ export default function Finanzas() {
                   <Button
                     size="lg"
                     variant="outline"
-                    onClick={() => setDialogoFiltrosAbierto(true)}
+                    onClick={abrirDialogoFiltros}
                     className="shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:scale-105 transition-all duration-200 relative"
                   >
                     <Filter className="h-5 w-5 mr-2" />
@@ -993,32 +1029,38 @@ export default function Finanzas() {
           <DialogHeader>
             <DialogTitle>Filtros de Finanzas</DialogTitle>
             <DialogDescription>
-              Filtra los movimientos por rango de fechas
+              Filtra los movimientos por rango de fechas con hora exacta
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="fecha_inicio">Fecha de Inicio</Label>
-              <DatePicker
+              <Label htmlFor="fecha_inicio">Fecha y Hora de Inicio</Label>
+              <DateTimePicker
                 valor={filtros.fecha_inicio}
-                onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_inicio: fecha })}
-                placeholder="Selecciona fecha de inicio"
+                onChange={manejarCambioFechaInicio}
+                placeholder="Selecciona fecha y hora de inicio"
               />
+              <p className="text-xs text-muted-foreground">
+                Por defecto: 00:00:00 del día seleccionado
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fecha_fin">Fecha de Fin</Label>
-              <DatePicker
+              <Label htmlFor="fecha_fin">Fecha y Hora de Fin</Label>
+              <DateTimePicker
                 valor={filtros.fecha_fin}
-                onChange={(fecha) => fecha && setFiltros({ ...filtros, fecha_fin: fecha })}
-                placeholder="Selecciona fecha de fin"
+                onChange={manejarCambioFechaFin}
+                placeholder="Selecciona fecha y hora de fin"
               />
+              <p className="text-xs text-muted-foreground">
+                Por defecto: 23:59:59 del día seleccionado
+              </p>
             </div>
 
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-xs text-blue-600 dark:text-blue-400">
-                Los filtros incluyen todos los movimientos desde el inicio del día (00:00:00) de la fecha inicial hasta el fin del día (23:59:59) de la fecha final, en tu zona horaria local.
+                Puedes ajustar manualmente las horas para rangos específicos. Los filtros incluyen todos los movimientos en el rango seleccionado, considerando la hora exacta.
               </p>
             </div>
           </div>

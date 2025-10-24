@@ -21,6 +21,8 @@ interface Cita {
   descripcion: string;
   estado_pago: string | null;
   monto_esperado: number | null;
+  horas_aproximadas: number;
+  minutos_aproximados: number;
   paciente?: {
     id: number;
     nombre: string;
@@ -55,6 +57,8 @@ export default function Agenda() {
     paciente_id: '',
     estado_pago: '',
     busqueda: '',
+    fecha_hora_inicio: undefined as Date | undefined,
+    fecha_hora_fin: undefined as Date | undefined,
   });
 
   const [formulario, setFormulario] = useState({
@@ -63,6 +67,8 @@ export default function Agenda() {
     descripcion: '',
     estado_pago: 'pendiente',
     monto_esperado: '',
+    horas_aproximadas: '0',
+    minutos_aproximados: '30',
   });
 
   const meses = [
@@ -108,6 +114,13 @@ export default function Agenda() {
   const aplicarFiltros = () => {
     let resultado = [...citas];
 
+    if (filtros.fecha_hora_inicio && filtros.fecha_hora_fin) {
+      resultado = resultado.filter(c => {
+        const fecha_cita = new Date(c.fecha);
+        return fecha_cita >= filtros.fecha_hora_inicio! && fecha_cita <= filtros.fecha_hora_fin!;
+      });
+    }
+
     if (filtros.paciente_id) {
       resultado = resultado.filter(c => c.paciente?.id.toString() === filtros.paciente_id);
     }
@@ -133,6 +146,8 @@ export default function Agenda() {
       paciente_id: '',
       estado_pago: '',
       busqueda: '',
+      fecha_hora_inicio: undefined,
+      fecha_hora_fin: undefined,
     });
     setDialogoFiltrosAbierto(false);
   };
@@ -142,6 +157,7 @@ export default function Agenda() {
     if (filtros.paciente_id) contador++;
     if (filtros.estado_pago) contador++;
     if (filtros.busqueda) contador++;
+    if (filtros.fecha_hora_inicio && filtros.fecha_hora_fin) contador++;
     return contador;
   };
 
@@ -168,6 +184,8 @@ export default function Agenda() {
       descripcion: '',
       estado_pago: 'pendiente',
       monto_esperado: '',
+      horas_aproximadas: '0',
+      minutos_aproximados: '30',
     });
     setModoEdicion(false);
     setDialogoAbierto(true);
@@ -180,6 +198,8 @@ export default function Agenda() {
       descripcion: cita.descripcion,
       estado_pago: cita.estado_pago || 'pendiente',
       monto_esperado: cita.monto_esperado?.toString() || '',
+      horas_aproximadas: (cita.horas_aproximadas || 0).toString(),
+      minutos_aproximados: (cita.minutos_aproximados || 30).toString(),
     });
     setCitaSeleccionada(cita);
     setModoEdicion(true);
@@ -196,11 +216,25 @@ export default function Agenda() {
       return;
     }
 
+    const horas = parseInt(formulario.horas_aproximadas);
+    const minutos = parseInt(formulario.minutos_aproximados);
+
+    if (isNaN(horas) || horas < 0 || isNaN(minutos) || minutos < 1) {
+      toast({
+        title: 'Error',
+        description: 'La duración debe ser válida (mínimo 1 minuto)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setGuardando(true);
     try {
       const datos: any = {
         fecha: ajustarFechaParaBackend(formulario.fecha),
         descripcion: formulario.descripcion,
+        horas_aproximadas: horas,
+        minutos_aproximados: minutos,
       };
 
       if (formulario.paciente_id) {
@@ -313,6 +347,16 @@ export default function Agenda() {
     }).format(monto);
   };
 
+  const formatearDuracion = (horas: number, minutos: number): string => {
+    if (horas > 0 && minutos > 0) {
+      return `${horas}h ${minutos}min`;
+    } else if (horas > 0) {
+      return `${horas}h`;
+    } else {
+      return `${minutos}min`;
+    }
+  };
+
   const obtenerColorEstado = (estado: string | null): string => {
     if (!estado) return 'bg-gray-500';
     const estado_encontrado = estados_pago.find(e => e.valor === estado);
@@ -375,6 +419,7 @@ export default function Agenda() {
   ];
 
   const tiene_paciente = formulario.paciente_id !== '';
+  const filtros_fecha_activos = !!(filtros.fecha_hora_inicio && filtros.fecha_hora_fin);
 
   if (cargando) {
     return (
@@ -437,7 +482,7 @@ export default function Agenda() {
                   </div>
                   <div>
                     <CardTitle className="text-2xl">
-                      {meses[mes_actual - 1]} {ano_actual}
+                      {filtros_fecha_activos ? 'Citas Filtradas' : `${meses[mes_actual - 1]} ${ano_actual}`}
                     </CardTitle>
                     <CardDescription>
                       {citas_filtradas.length} de {citas.length} citas
@@ -451,7 +496,8 @@ export default function Agenda() {
                     variant="outline"
                     size="icon"
                     onClick={() => cambiarMes(-1)}
-                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
+                    disabled={filtros_fecha_activos}
+                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </Button>
@@ -461,7 +507,8 @@ export default function Agenda() {
                       setMesActual(new Date().getMonth() + 1);
                       setAnoActual(new Date().getFullYear());
                     }}
-                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200"
+                    disabled={filtros_fecha_activos}
+                    className="hover:bg-primary/20 hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Hoy
                   </Button>
@@ -469,7 +516,8 @@ export default function Agenda() {
                     variant="outline"
                     size="icon"
                     onClick={() => cambiarMes(1)}
-                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200"
+                    disabled={filtros_fecha_activos}
+                    className="hover:bg-primary/20 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </Button>
@@ -543,12 +591,18 @@ export default function Agenda() {
                               </div>
                               <div className="ml-4 flex-1">
                                 <p className="text-sm text-foreground">{cita.descripcion}</p>
-                                {cita.paciente && cita.monto_esperado && cita.monto_esperado > 0 && (
-                                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                    <DollarSign className="h-3 w-3" />
-                                    Monto esperado: {formatearMoneda(cita.monto_esperado)}
+                                <div className="flex items-center gap-3 mt-1">
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
                                   </p>
-                                )}
+                                  {cita.paciente && cita.monto_esperado && cita.monto_esperado > 0 && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <DollarSign className="h-3 w-3" />
+                                      Monto esperado: {formatearMoneda(cita.monto_esperado)}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
                               {cita.paciente && (
                                 <Badge className={`${obtenerColorEstado(cita.estado_pago)} text-white hover:scale-110 transition-transform duration-200`}>
@@ -627,6 +681,31 @@ export default function Agenda() {
                 placeholder="Selecciona un estado"
               />
             </div>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <Label className="text-base font-semibold">Filtrar por Intervalo de Fecha y Hora</Label>
+              <p className="text-xs text-muted-foreground">
+                Cuando uses este filtro, los botones de navegación de mes se deshabilitarán
+              </p>
+              
+              <div className="space-y-2">
+                <Label>Fecha y Hora de Inicio</Label>
+                <DateTimePicker
+                  valor={filtros.fecha_hora_inicio}
+                  onChange={(fecha) => setFiltros({ ...filtros, fecha_hora_inicio: fecha })}
+                  placeholder="Selecciona inicio"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Fecha y Hora de Fin</Label>
+                <DateTimePicker
+                  valor={filtros.fecha_hora_fin}
+                  onChange={(fecha) => setFiltros({ ...filtros, fecha_hora_fin: fecha })}
+                  placeholder="Selecciona fin"
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -694,6 +773,43 @@ export default function Agenda() {
                 rows={3}
                 className="hover:border-primary/50 focus:border-primary transition-all duration-200"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Duración Aproximada</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="horas_aproximadas" className="text-xs text-muted-foreground">
+                    Horas
+                  </Label>
+                  <Input
+                    id="horas_aproximadas"
+                    type="number"
+                    min="0"
+                    value={formulario.horas_aproximadas}
+                    onChange={(e) => setFormulario({ ...formulario, horas_aproximadas: e.target.value })}
+                    placeholder="0"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minutos_aproximados" className="text-xs text-muted-foreground">
+                    Minutos
+                  </Label>
+                  <Input
+                    id="minutos_aproximados"
+                    type="number"
+                    min="1"
+                    value={formulario.minutos_aproximados}
+                    onChange={(e) => setFormulario({ ...formulario, minutos_aproximados: e.target.value })}
+                    placeholder="30"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tiempo estimado de la cita (para validación de conflictos de horario)
+              </p>
             </div>
 
             {tiene_paciente && (

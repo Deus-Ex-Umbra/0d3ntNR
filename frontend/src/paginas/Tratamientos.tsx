@@ -54,7 +54,6 @@ import { Badge } from "@/componentes/ui/badge";
 import { Combobox, OpcionCombobox } from "@/componentes/ui/combobox";
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
-import { TimePicker } from '@/componentes/ui/time-picker';
 import { ajustarFechaParaBackend } from "@/lib/utilidades";
 
 interface Tratamiento {
@@ -65,6 +64,8 @@ interface Tratamiento {
   intervalo_dias: number;
   intervalo_semanas: number;
   intervalo_meses: number;
+  horas_aproximadas_citas: number;
+  minutos_aproximados_citas: number;
 }
 
 interface Paciente {
@@ -93,6 +94,8 @@ interface PlanTratamiento {
     descripcion: string;
     estado_pago: string;
     monto_esperado: number;
+    horas_aproximadas: number;
+    minutos_aproximados: number;
   }>;
   pagos: Array<{
     id: number;
@@ -128,13 +131,14 @@ export default function Tratamientos() {
     intervalo_dias: "0",
     intervalo_semanas: "0",
     intervalo_meses: "0",
+    horas_aproximadas_citas: "0",
+    minutos_aproximados_citas: "30",
   });
 
   const [formulario_asignar, setFormularioAsignar] = useState({
     paciente_id: "",
     tratamiento_id: "",
     fecha_inicio: undefined as Date | undefined,
-    hora_inicio: "09:00",
   });
 
   const [formulario_cita, setFormularioCita] = useState({
@@ -142,6 +146,8 @@ export default function Tratamientos() {
     descripcion: "",
     estado_pago: "pendiente",
     monto_esperado: "",
+    horas_aproximadas: "0",
+    minutos_aproximados: "30",
   });
 
   const estados_pago = [
@@ -216,6 +222,8 @@ export default function Tratamientos() {
       intervalo_dias: "0",
       intervalo_semanas: "0",
       intervalo_meses: "0",
+      horas_aproximadas_citas: "0",
+      minutos_aproximados_citas: "30",
     });
     setModoEdicion(false);
     setDialogoPlantillaAbierto(true);
@@ -229,6 +237,8 @@ export default function Tratamientos() {
       intervalo_dias: (tratamiento.intervalo_dias || 0).toString(),
       intervalo_semanas: (tratamiento.intervalo_semanas || 0).toString(),
       intervalo_meses: (tratamiento.intervalo_meses || 0).toString(),
+      horas_aproximadas_citas: (tratamiento.horas_aproximadas_citas || 0).toString(),
+      minutos_aproximados_citas: (tratamiento.minutos_aproximados_citas || 30).toString(),
     });
     setTratamientoSeleccionado(tratamiento);
     setModoEdicion(true);
@@ -254,6 +264,8 @@ export default function Tratamientos() {
     const intervalo_dias = parseInt(formulario_plantilla.intervalo_dias);
     const intervalo_semanas = parseInt(formulario_plantilla.intervalo_semanas);
     const intervalo_meses = parseInt(formulario_plantilla.intervalo_meses);
+    const horas_aproximadas_citas = parseInt(formulario_plantilla.horas_aproximadas_citas);
+    const minutos_aproximados_citas = parseInt(formulario_plantilla.minutos_aproximados_citas);
 
     if (
       isNaN(numero_citas) ||
@@ -265,7 +277,11 @@ export default function Tratamientos() {
       isNaN(intervalo_semanas) ||
       intervalo_semanas < 0 ||
       isNaN(intervalo_meses) ||
-      intervalo_meses < 0
+      intervalo_meses < 0 ||
+      isNaN(horas_aproximadas_citas) ||
+      horas_aproximadas_citas < 0 ||
+      isNaN(minutos_aproximados_citas) ||
+      minutos_aproximados_citas < 1
     ) {
       toast({
         title: "Error",
@@ -292,6 +308,8 @@ export default function Tratamientos() {
         intervalo_dias,
         intervalo_semanas,
         intervalo_meses,
+        horas_aproximadas_citas,
+        minutos_aproximados_citas,
       };
 
       if (modo_edicion && tratamiento_seleccionado) {
@@ -350,11 +368,13 @@ export default function Tratamientos() {
   };
 
   const abrirDialogoAsignar = (tratamiento: Tratamiento) => {
+    const ahora = new Date();
+    ahora.setHours(9, 0, 0, 0);
+    
     setFormularioAsignar({
       paciente_id: "",
       tratamiento_id: tratamiento.id.toString(),
-      fecha_inicio: new Date(),
-      hora_inicio: "09:00",
+      fecha_inicio: ahora,
     });
     setTratamientoSeleccionado(tratamiento);
     setDialogoAsignarAbierto(true);
@@ -367,12 +387,17 @@ export default function Tratamientos() {
     return `${anio}-${mes}-${dia}`;
   };
 
+  const formatearHoraParaBackend = (fecha: Date): string => {
+    const horas = String(fecha.getHours()).padStart(2, '0');
+    const minutos = String(fecha.getMinutes()).padStart(2, '0');
+    return `${horas}:${minutos}`;
+  };
+
   const manejarAsignarTratamiento = async () => {
     if (
       !formulario_asignar.paciente_id ||
       !formulario_asignar.tratamiento_id ||
-      !formulario_asignar.fecha_inicio ||
-      !formulario_asignar.hora_inicio
+      !formulario_asignar.fecha_inicio
     ) {
       toast({
         title: "Error",
@@ -388,7 +413,7 @@ export default function Tratamientos() {
         paciente_id: parseInt(formulario_asignar.paciente_id),
         tratamiento_id: parseInt(formulario_asignar.tratamiento_id),
         fecha_inicio: formatearFechaParaBackend(formulario_asignar.fecha_inicio),
-        hora_inicio: formulario_asignar.hora_inicio,
+        hora_inicio: formatearHoraParaBackend(formulario_asignar.fecha_inicio),
       });
       toast({
         title: "Éxito",
@@ -430,6 +455,8 @@ export default function Tratamientos() {
       descripcion: "",
       estado_pago: "pendiente",
       monto_esperado: "",
+      horas_aproximadas: "0",
+      minutos_aproximados: "30",
     });
     setModoEdicionCita(false);
     setDialogoCitaAbierto(true);
@@ -441,6 +468,8 @@ export default function Tratamientos() {
       descripcion: cita.descripcion,
       estado_pago: cita.estado_pago || 'pendiente',
       monto_esperado: cita.monto_esperado?.toString() || "",
+      horas_aproximadas: (cita.horas_aproximadas || 0).toString(),
+      minutos_aproximados: (cita.minutos_aproximados || 30).toString(),
     });
     setCitaSeleccionada(cita);
     setModoEdicionCita(true);
@@ -457,6 +486,18 @@ export default function Tratamientos() {
       return;
     }
 
+    const horas = parseInt(formulario_cita.horas_aproximadas);
+    const minutos = parseInt(formulario_cita.minutos_aproximados);
+
+    if (isNaN(horas) || horas < 0 || isNaN(minutos) || minutos < 1) {
+      toast({
+        title: "Error",
+        description: "La duración debe ser válida (mínimo 1 minuto)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setGuardando(true);
     try {
       const datos: any = {
@@ -466,6 +507,8 @@ export default function Tratamientos() {
         descripcion: formulario_cita.descripcion,
         estado_pago: formulario_cita.estado_pago,
         monto_esperado: formulario_cita.monto_esperado ? parseFloat(formulario_cita.monto_esperado) : 0,
+        horas_aproximadas: horas,
+        minutos_aproximados: minutos,
       };
 
       if (modo_edicion_cita && cita_seleccionada) {
@@ -558,6 +601,16 @@ export default function Tratamientos() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const formatearDuracion = (horas: number, minutos: number): string => {
+    if (horas > 0 && minutos > 0) {
+      return `${horas}h ${minutos}min`;
+    } else if (horas > 0) {
+      return `${horas}h`;
+    } else {
+      return `${minutos}min`;
+    }
   };
 
   const calcularProgreso = (plan: PlanTratamiento): number => {
@@ -717,6 +770,7 @@ export default function Tratamientos() {
                           <TableHead>Nombre del Tratamiento</TableHead>
                           <TableHead>Número de Citas</TableHead>
                           <TableHead>Intervalo</TableHead>
+                          <TableHead>Duración por Cita</TableHead>
                           <TableHead>Costo Total</TableHead>
                           <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
@@ -740,6 +794,12 @@ export default function Tratamientos() {
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <Clock className="h-4 w-4" />
                                 {obtenerTextoIntervalo(tratamiento)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                {formatearDuracion(tratamiento.horas_aproximadas_citas, tratamiento.minutos_aproximados_citas)}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1075,6 +1135,54 @@ export default function Tratamientos() {
                 Las citas se programarán automáticamente con este intervalo. Ej: 1 mes, 2 semanas, 3 días
               </p>
             </div>
+
+            <div className="space-y-2">
+              <Label>Duración Aproximada de Cada Cita</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="horas_aproximadas_citas" className="text-xs text-muted-foreground">
+                    Horas
+                  </Label>
+                  <Input
+                    id="horas_aproximadas_citas"
+                    type="number"
+                    min="0"
+                    value={formulario_plantilla.horas_aproximadas_citas}
+                    onChange={(e) =>
+                      setFormularioPlantilla({
+                        ...formulario_plantilla,
+                        horas_aproximadas_citas: e.target.value,
+                      })
+                    }
+                    placeholder="0"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="minutos_aproximados_citas" className="text-xs text-muted-foreground">
+                    Minutos
+                  </Label>
+                  <Input
+                    id="minutos_aproximados_citas"
+                    type="number"
+                    min="1"
+                    value={formulario_plantilla.minutos_aproximados_citas}
+                    onChange={(e) =>
+                      setFormularioPlantilla({
+                        ...formulario_plantilla,
+                        minutos_aproximados_citas: e.target.value,
+                      })
+                    }
+                    placeholder="30"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Todas las citas del plan tendrán esta duración estimada
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1127,30 +1235,19 @@ export default function Tratamientos() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fecha_inicio">Fecha de Inicio *</Label>
-                <DatePicker
-                  valor={formulario_asignar.fecha_inicio}
-                  onChange={(fecha) => fecha && setFormularioAsignar({
-                    ...formulario_asignar,
-                    fecha_inicio: fecha,
-                  })}
-                  placeholder="Selecciona fecha de inicio"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="hora_inicio">Hora de las Citas *</Label>
-                <TimePicker
-                  valor={formulario_asignar.hora_inicio}
-                  onChange={(hora: string) => setFormularioAsignar({
-                    ...formulario_asignar,
-                    hora_inicio: hora,
-                  })}
-                  placeholder="Selecciona hora"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="fecha_inicio">Fecha y Hora de Inicio de las Citas *</Label>
+              <DateTimePicker
+                valor={formulario_asignar.fecha_inicio}
+                onChange={(fecha) => fecha && setFormularioAsignar({
+                  ...formulario_asignar,
+                  fecha_inicio: fecha,
+                })}
+                placeholder="Selecciona fecha y hora"
+              />
+              <p className="text-xs text-muted-foreground">
+                Todas las citas comenzarán a esta hora
+              </p>
             </div>
 
             {tratamiento_seleccionado && (
@@ -1168,6 +1265,10 @@ export default function Tratamientos() {
                     {obtenerTextoIntervalo(tratamiento_seleccionado)}
                   </p>
                   <p className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Duración por cita: {formatearDuracion(tratamiento_seleccionado.horas_aproximadas_citas, tratamiento_seleccionado.minutos_aproximados_citas)}
+                  </p>
+                  <p className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
                     Costo total:{" "}
                     {formatearMoneda(tratamiento_seleccionado.costo_total)}
@@ -1179,7 +1280,7 @@ export default function Tratamientos() {
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                Todas las citas se programarán a las {formulario_asignar.hora_inicio}. El sistema validará automáticamente que no haya conflictos de horario.
+                El sistema validará automáticamente que no haya conflictos de horario considerando la duración de cada cita.
               </p>
             </div>
           </div>
@@ -1317,12 +1418,18 @@ export default function Tratamientos() {
                             <p className="text-sm text-muted-foreground ml-7">
                               {cita.descripcion}
                             </p>
-                            {cita.monto_esperado > 0 && (
-                              <p className="text-xs text-muted-foreground ml-7 mt-1 flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                Monto: {formatearMoneda(cita.monto_esperado)}
+                            <div className="flex items-center gap-3 ml-7 mt-1">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Duración: {formatearDuracion(cita.horas_aproximadas, cita.minutos_aproximados)}
                               </p>
-                            )}
+                              {cita.monto_esperado > 0 && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  Monto: {formatearMoneda(cita.monto_esperado)}
+                                </p>
+                              )}
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <Button
@@ -1417,6 +1524,43 @@ export default function Tratamientos() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Duración Aproximada</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="horas_aproximadas_cita" className="text-xs text-muted-foreground">
+                    Horas
+                  </Label>
+                  <Input
+                    id="horas_aproximadas_cita"
+                    type="number"
+                    min="0"
+                    value={formulario_cita.horas_aproximadas}
+                    onChange={(e) => setFormularioCita({ ...formulario_cita, horas_aproximadas: e.target.value })}
+                    placeholder="0"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minutos_aproximados_cita" className="text-xs text-muted-foreground">
+                    Minutos
+                  </Label>
+                  <Input
+                    id="minutos_aproximados_cita"
+                    type="number"
+                    min="1"
+                    value={formulario_cita.minutos_aproximados}
+                    onChange={(e) => setFormularioCita({ ...formulario_cita, minutos_aproximados: e.target.value })}
+                    placeholder="30"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tiempo estimado de la cita (para validación de conflictos de horario)
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="estado_pago_cita">Estado de Pago</Label>
@@ -1455,7 +1599,7 @@ export default function Tratamientos() {
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                El sistema validará automáticamente que no haya conflictos de horario con otras citas (±30 minutos).
+                El sistema validará automáticamente que no haya conflictos de horario considerando la duración especificada.
               </p>
             </div>
           </div>

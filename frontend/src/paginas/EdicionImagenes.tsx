@@ -546,7 +546,7 @@ export default function EdicionImagenes() {
           )}
 
           {!paciente_seleccionado && todos_pacientes.length > 0 && (
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2">
               <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-all duration-300 cursor-pointer">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -562,23 +562,6 @@ export default function EdicionImagenes() {
                   </p>
                 </CardContent>
               </Card>
-
-              <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-all duration-300 cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <div className="bg-green-500/10 p-2 rounded-lg">
-                      <ImageIcon className="h-4 w-4 text-green-500" />
-                    </div>
-                    Simbología Dental
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Agrega símbolos dentales estándar desde el catálogo para marcar estructuras y condiciones específicas.
-                  </p>
-                </CardContent>
-              </Card>
-
               <Card className="border-2 border-border shadow-lg hover:shadow-[0_0_20px_rgba(59,130,246,0.2)] hover:scale-105 transition-all duration-300 cursor-pointer">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
