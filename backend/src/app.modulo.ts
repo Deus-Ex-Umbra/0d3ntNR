@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppControlador } from './app.controlador';
 import { AppServicio } from './app.servicio';
 import { PacientesModule } from './modulos/pacientes/pacientes.modulo';
-import { OdontogramaModule } from './modulos/odontograma/odontograma.modulo';
 import { TratamientosModule } from './modulos/tratamientos/tratamientos.modulo';
 import { AgendaModule } from './modulos/agenda/agenda.modulo';
 import { FinanzasModule } from './modulos/finanzas/finanzas.modulo';
@@ -16,11 +15,11 @@ import { AsistenteModule } from './modulos/asistente/asistente.modulo';
 import { EstadisticasModule } from './modulos/estadisticas/estadisticas.modulo';
 import { CatalogoModule } from './modulos/catalogo/catalogo.modulo';
 import { ArchivosAdjuntosModule } from './modulos/archivos-adjuntos/archivos-adjuntos.modulo';
+import { EdicionesImagenesModule } from './modulos/ediciones-imagenes/ediciones-imagenes.modulo';
 import { Paciente } from './modulos/pacientes/entidades/paciente.entidad';
 import { PacienteAlergia } from './modulos/pacientes/entidades/paciente-alergia.entidad';
 import { PacienteEnfermedad } from './modulos/pacientes/entidades/paciente-enfermedad.entidad';
 import { PacienteMedicamento } from './modulos/pacientes/entidades/paciente-medicamento.entidad';
-import { Odontograma } from './modulos/odontograma/entidades/odontograma.entidad';
 import { Tratamiento } from './modulos/tratamientos/entidades/tratamiento.entidad';
 import { PlanTratamiento } from './modulos/tratamientos/entidades/plan-tratamiento.entidad';
 import { Cita } from './modulos/agenda/entidades/cita.entidad';
@@ -34,6 +33,7 @@ import { Medicamento } from './modulos/catalogo/entidades/medicamento.entidad';
 import { ColorCategoria } from './modulos/catalogo/entidades/color-categoria.entidad';
 import { Simbologia } from './modulos/catalogo/entidades/simbologia.entidad';
 import { ArchivoAdjunto } from './modulos/archivos-adjuntos/entidades/archivo-adjunto.entidad';
+import { EdicionImagen } from './modulos/ediciones-imagenes/entidades/edicion-imagen.entidad';
 
 @Module({
   imports: [
@@ -46,7 +46,6 @@ import { ArchivoAdjunto } from './modulos/archivos-adjuntos/entidades/archivo-ad
         PacienteAlergia,
         PacienteEnfermedad,
         PacienteMedicamento,
-        Odontograma,
         Tratamiento,
         PlanTratamiento,
         Cita,
@@ -60,11 +59,11 @@ import { ArchivoAdjunto } from './modulos/archivos-adjuntos/entidades/archivo-ad
         ColorCategoria,
         Simbologia,
         ArchivoAdjunto,
+        EdicionImagen,
       ],
       synchronize: true,
     }),
     PacientesModule,
-    OdontogramaModule,
     TratamientosModule,
     AgendaModule,
     FinanzasModule,
@@ -76,9 +75,9 @@ import { ArchivoAdjunto } from './modulos/archivos-adjuntos/entidades/archivo-ad
     EstadisticasModule,
     CatalogoModule,
     ArchivosAdjuntosModule,
+    EdicionesImagenesModule,
   ],
   controllers: [AppControlador],
   providers: [AppServicio],
 })
 export class AppModule {}
-

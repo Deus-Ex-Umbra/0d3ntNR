@@ -101,24 +101,6 @@ export const pacientesApi = {
   },
 };
 
-export const odontogramaApi = {
-  crear: async (paciente_id: number, datos: {
-    datos: any;
-    etapa_dental?: 'Infantil' | 'Mixta' | 'Adulto';
-  }) => {
-    const respuesta = await api.post(`/pacientes/${paciente_id}/odontograma`, datos);
-    return respuesta.data;
-  },
-  obtenerHistorial: async (paciente_id: number) => {
-    const respuesta = await api.get(`/pacientes/${paciente_id}/odontograma`);
-    return respuesta.data;
-  },
-  obtenerUltimo: async (paciente_id: number) => {
-    const respuesta = await api.get(`/pacientes/${paciente_id}/odontograma/ultimo`);
-    return respuesta.data;
-  },
-};
-
 export const tratamientosApi = {
   crear: async (datos: { nombre: string; numero_citas: number; costo_total: number }) => {
     const respuesta = await api.post('/tratamientos', datos);
@@ -369,6 +351,45 @@ export const archivosApi = {
   },
   eliminar: async (id: number) => {
     const respuesta = await api.delete(`/archivos-adjuntos/${id}`);
+    return respuesta.data;
+  },
+};
+
+export const edicionesImagenesApi = {
+  crear: async (datos: {
+    archivo_original_id: number;
+    edicion_padre_id?: number;
+    nombre?: string;
+    descripcion?: string;
+    datos_canvas: object;
+    imagen_resultado_base64: string;
+  }) => {
+    const respuesta = await api.post('/ediciones-imagenes', datos);
+    return respuesta.data;
+  },
+  obtenerPorArchivo: async (archivo_id: number) => {
+    const respuesta = await api.get(`/ediciones-imagenes/archivo/${archivo_id}`);
+    return respuesta.data;
+  },
+  obtenerPorId: async (id: number) => {
+    const respuesta = await api.get(`/ediciones-imagenes/${id}`);
+    return respuesta.data;
+  },
+  actualizar: async (id: number, datos: {
+    nombre?: string;
+    descripcion?: string;
+    datos_canvas?: object;
+    imagen_resultado_base64?: string;
+  }) => {
+    const respuesta = await api.put(`/ediciones-imagenes/${id}`, datos);
+    return respuesta.data;
+  },
+  eliminar: async (id: number) => {
+    const respuesta = await api.delete(`/ediciones-imagenes/${id}`);
+    return respuesta.data;
+  },
+  duplicar: async (id: number) => {
+    const respuesta = await api.post(`/ediciones-imagenes/${id}/duplicar`);
     return respuesta.data;
   },
 };
