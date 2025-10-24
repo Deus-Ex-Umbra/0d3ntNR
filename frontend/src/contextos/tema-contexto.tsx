@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
-type Tema = 'claro' | 'oscuro' | 'azul' | 'sistema';
+type Tema = 'claro' | 'oscuro' | 'azul' | 'verde' | 'rosa' | 'beige' | 'gris' | 'morado' | 'naranja' | 'clinico' | 'menta' | 'sistema';
 
 interface ContextoTema {
   tema: Tema;
   cambiarTema: (tema: Tema) => void;
-  tema_efectivo: 'claro' | 'oscuro' | 'azul';
+  tema_efectivo: 'claro' | 'oscuro' | 'azul' | 'verde' | 'rosa' | 'beige' | 'gris' | 'morado' | 'naranja' | 'clinico' | 'menta';
 }
 
 const ContextoTema = createContext<ContextoTema | undefined>(undefined);
@@ -16,13 +16,13 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
     return (tema_guardado as Tema) || 'oscuro';
   });
 
-  const [tema_efectivo, setTemaEfectivo] = useState<'claro' | 'oscuro' | 'azul'>('oscuro');
+  const [tema_efectivo, setTemaEfectivo] = useState<'claro' | 'oscuro' | 'azul' | 'verde' | 'rosa' | 'beige' | 'gris' | 'morado' | 'naranja' | 'clinico' | 'menta'>('oscuro');
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.classList.remove('dark', 'blue');
+    root.classList.remove('dark', 'blue', 'green', 'rose', 'beige', 'gray', 'purple', 'orange', 'clinical', 'mint');
     
-    let tema_aplicar: 'claro' | 'oscuro' | 'azul' = 'oscuro';
+    let tema_aplicar: 'claro' | 'oscuro' | 'azul' | 'verde' | 'rosa' | 'beige' | 'gris' | 'morado' | 'naranja' | 'clinico' | 'menta' = 'oscuro';
     
     if (tema === 'sistema') {
       const es_oscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -33,19 +33,31 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
     
     setTemaEfectivo(tema_aplicar);
     
-    // Aplicar clase al root (claro no necesita clase, usa :root)
     if (tema_aplicar === 'oscuro') {
       root.classList.add('dark');
     } else if (tema_aplicar === 'azul') {
       root.classList.add('blue');
+    } else if (tema_aplicar === 'verde') {
+      root.classList.add('green');
+    } else if (tema_aplicar === 'rosa') {
+      root.classList.add('rose');
+    } else if (tema_aplicar === 'beige') {
+      root.classList.add('beige');
+    } else if (tema_aplicar === 'gris') {
+      root.classList.add('gray');
+    } else if (tema_aplicar === 'morado') {
+      root.classList.add('purple');
+    } else if (tema_aplicar === 'naranja') {
+      root.classList.add('orange');
+    } else if (tema_aplicar === 'clinico') {
+      root.classList.add('clinical');
+    } else if (tema_aplicar === 'menta') {
+      root.classList.add('mint');
     }
-    // Si es claro, no agregamos clase, usa las variables de :root
     
-    // Guardar en localStorage
     localStorage.setItem('tema', tema);
   }, [tema]);
 
-  // Escuchar cambios en preferencias del sistema
   useEffect(() => {
     if (tema !== 'sistema') return;
     
@@ -56,7 +68,7 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
       setTemaEfectivo(nuevo_tema);
       
       const root = window.document.documentElement;
-      root.classList.remove('dark', 'blue');
+      root.classList.remove('dark', 'blue', 'green', 'rose', 'beige', 'gray', 'purple', 'orange', 'clinical', 'mint');
       if (nuevo_tema === 'oscuro') {
         root.classList.add('dark');
       }

@@ -15,6 +15,7 @@ import { Combobox, OpcionCombobox } from '@/componentes/ui/combobox';
 import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DatePicker } from '@/componentes/ui/date-picker';
+import { formatearFechaISO, inicioDelDia, finDelDia } from '@/lib/utilidades';
 
 interface Movimiento {
   id: number;
@@ -129,10 +130,11 @@ export default function Finanzas() {
   const cargarDatosGrafico = async () => {
     setCargandoGrafico(true);
     try {
-      const anio = fecha_grafico.getFullYear();
-      const mes = String(fecha_grafico.getMonth() + 1).padStart(2, '0');
-      const dia = String(fecha_grafico.getDate()).padStart(2, '0');
-      const fecha_str = `${anio}-${mes}-${dia}`;
+      const fecha_local = new Date(fecha_grafico);
+      const anio = fecha_local.getFullYear();
+      const mes = String(fecha_local.getMonth() + 1).padStart(2, '0');
+      const dia = String(fecha_local.getDate()).padStart(2, '0');
+      const fecha_str = `${anio}-${mes}-${dia}T12:00:00`;
       
       const datos = await finanzasApi.obtenerDatosGrafico(tipo_grafico, fecha_str);
       setDatosGrafico(datos);
@@ -160,13 +162,6 @@ export default function Finanzas() {
     }
   };
 
-  const formatearFechaParaBackend = (fecha: Date): string => {
-    const anio = fecha.getFullYear();
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-    const dia = String(fecha.getDate()).padStart(2, '0');
-    return `${anio}-${mes}-${dia}`;
-  };
-
   const manejarFiltrarPorFechas = async () => {
     if (!filtros.fecha_inicio || !filtros.fecha_fin) {
       toast({
@@ -178,12 +173,21 @@ export default function Finanzas() {
     }
 
     try {
-      const inicio = formatearFechaParaBackend(filtros.fecha_inicio);
-      const fin = formatearFechaParaBackend(filtros.fecha_fin);
-      const datos = await finanzasApi.obtenerReporte(inicio, fin);
+      const inicio = inicioDelDia(filtros.fecha_inicio);
+      const fin = finDelDia(filtros.fecha_fin);
+      
+      const inicio_str = formatearFechaISO(inicio);
+      const fin_str = formatearFechaISO(fin);
+      
+      const datos = await finanzasApi.obtenerReporte(inicio_str, fin_str);
       setReporte(datos);
       setFiltrosAplicados(true);
       setDialogoFiltrosAbierto(false);
+      
+      toast({
+        title: 'Filtros aplicados',
+        description: `Mostrando movimientos desde ${formatearFecha(inicio)} hasta ${formatearFecha(fin)}`,
+      });
     } catch (error) {
       console.error('Error al filtrar:', error);
       toast({
@@ -203,6 +207,11 @@ export default function Finanzas() {
     setReporte(reporte_general);
     setFiltrosAplicados(false);
     setDialogoFiltrosAbierto(false);
+    
+    toast({
+      title: 'Filtros limpiados',
+      description: 'Mostrando todos los movimientos',
+    });
   };
 
   const contarFiltrosActivos = () => {
@@ -315,7 +324,7 @@ export default function Finanzas() {
 
       setDialogoIngresoAbierto(false);
       await cargarReporteGeneral();
-      if (filtros_aplicados) {
+      if (filtros_aplicados && filtros.fecha_inicio && filtros.fecha_fin) {
         await manejarFiltrarPorFechas();
       }
       cargarDatosGrafico();
@@ -381,7 +390,7 @@ export default function Finanzas() {
 
       setDialogoEgresoAbierto(false);
       await cargarReporteGeneral();
-      if (filtros_aplicados) {
+      if (filtros_aplicados && filtros.fecha_inicio && filtros.fecha_fin) {
         await manejarFiltrarPorFechas();
       }
       cargarDatosGrafico();
@@ -420,7 +429,7 @@ export default function Finanzas() {
       setDialogoConfirmarEliminarAbierto(false);
       setMovimientoAEliminar(null);
       await cargarReporteGeneral();
-      if (filtros_aplicados) {
+      if (filtros_aplicados && filtros.fecha_inicio && filtros.fecha_fin) {
         await manejarFiltrarPorFechas();
       }
       cargarDatosGrafico();
@@ -1009,7 +1018,7 @@ export default function Finanzas() {
 
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <p className="text-xs text-blue-600 dark:text-blue-400">
-                Los filtros incluyen todos los movimientos desde el inicio del día de la fecha inicial hasta el fin del día de la fecha final.
+                Los filtros incluyen todos los movimientos desde el inicio del día (00:00:00) de la fecha inicial hasta el fin del día (23:59:59) de la fecha final, en tu zona horaria local.
               </p>
             </div>
           </div>

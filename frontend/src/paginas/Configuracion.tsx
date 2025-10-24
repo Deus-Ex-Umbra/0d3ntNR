@@ -7,7 +7,7 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
 import { ScrollArea } from '@/componentes/ui/scroll-area';
-import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar } from 'lucide-react';
+import { Settings, User, Bell, Palette, Camera, Loader2, Save, Sparkles, Sun, Moon, Monitor, Droplet, Database, Lock, Eye, EyeOff, FileText, Calendar, Leaf, Heart, Coffee, Layers, Grape, Flame, Stethoscope, Pill } from 'lucide-react';
 import { useAutenticacion } from '@/contextos/autenticacion-contexto';
 import { useTema } from '@/contextos/tema-contexto';
 import { usuariosApi, notasApi, asistenteApi, catalogoApi } from '@/lib/api';
@@ -69,11 +69,27 @@ export default function Configuracion() {
   const [cargando_catalogos, setCargandoCatalogos] = useState(false);
 
   const temas_disponibles = [
-    { valor: 'sistema', nombre: 'Sistema', icono: Monitor, descripcion: 'Usar tema del sistema' },
-    { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro' },
-    { valor: 'oscuro', nombre: 'Oscuro', icono: Moon, descripcion: 'Tema oscuro' },
-    { valor: 'azul', nombre: 'Azul Oscuro', icono: Droplet, descripcion: 'Tema azul profesional' },
+    { valor: 'sistema', nombre: 'Sistema', icono: Monitor, descripcion: 'Usar tema del sistema', categoria: 'General' },
+    { valor: 'claro', nombre: 'Claro', icono: Sun, descripcion: 'Tema claro tradicional', categoria: 'General' },
+    { valor: 'oscuro', nombre: 'Oscuro', icono: Moon, descripcion: 'Tema oscuro clásico', categoria: 'General' },
+    { valor: 'clinico', nombre: 'Clínico Blanco', icono: Stethoscope, descripcion: 'Limpio y profesional', categoria: 'Médico' },
+    { valor: 'menta', nombre: 'Menta Dental', icono: Pill, descripcion: 'Verde menta relajante', categoria: 'Médico' },
+    { valor: 'azul', nombre: 'Azul Océano', icono: Droplet, descripcion: 'Tonos azules profundos', categoria: 'Colores' },
+    { valor: 'verde', nombre: 'Verde Bosque', icono: Leaf, descripcion: 'Tonos verdes naturales', categoria: 'Colores' },
+    { valor: 'rosa', nombre: 'Rosa Elegante', icono: Heart, descripcion: 'Tonos rosa suaves', categoria: 'Colores' },
+    { valor: 'beige', nombre: 'Beige Cálido', icono: Coffee, descripcion: 'Tonos beige y hueso', categoria: 'Colores' },
+    { valor: 'gris', nombre: 'Gris Neutro', icono: Layers, descripcion: 'Escala de grises pura', categoria: 'Colores' },
+    { valor: 'morado', nombre: 'Morado Real', icono: Grape, descripcion: 'Tonos morados elegantes', categoria: 'Colores' },
+    { valor: 'naranja', nombre: 'Naranja Fuego', icono: Flame, descripcion: 'Tonos naranjas cálidos', categoria: 'Colores' },
   ];
+
+  const temas_por_categoria = temas_disponibles.reduce((acc, tema) => {
+    if (!acc[tema.categoria]) {
+      acc[tema.categoria] = [];
+    }
+    acc[tema.categoria].push(tema);
+    return acc;
+  }, {} as Record<string, typeof temas_disponibles>);
 
   useEffect(() => {
     cargarCatalogos();
@@ -324,6 +340,23 @@ export default function Configuracion() {
     } catch (error) {
       return fecha_string;
     }
+  };
+
+  const obtenerNombreTemaEfectivo = (): string => {
+    const nombres: Record<string, string> = {
+      'claro': 'Claro',
+      'oscuro': 'Oscuro',
+      'azul': 'Azul Océano',
+      'verde': 'Verde Bosque',
+      'rosa': 'Rosa Elegante',
+      'beige': 'Beige Cálido',
+      'gris': 'Gris Neutro',
+      'morado': 'Morado Real',
+      'naranja': 'Naranja Fuego',
+      'clinico': 'Clínico Blanco',
+      'menta': 'Menta Dental',
+    };
+    return nombres[tema_efectivo] || tema_efectivo;
   };
 
   return (
@@ -774,52 +807,64 @@ export default function Configuracion() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {temas_disponibles.map((tema_opcion) => {
-                      const Icono = tema_opcion.icono;
-                      const esta_activo = tema === tema_opcion.valor;
+                <CardContent className="space-y-8">
+                  {Object.entries(temas_por_categoria).map(([categoria, temas]) => (
+                    <div key={categoria} className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-px flex-1 bg-border"></div>
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-3">
+                          {categoria}
+                        </h3>
+                        <div className="h-px flex-1 bg-border"></div>
+                      </div>
                       
-                      return (
-                        <button
-                          key={tema_opcion.valor}
-                          onClick={() => cambiarTema(tema_opcion.valor as any)}
-                          className={`p-6 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
-                            esta_activo
-                              ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
-                              : 'border-border hover:border-primary/50 hover:bg-secondary/50'
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-lg ${
-                              esta_activo ? 'bg-primary/20' : 'bg-secondary'
-                            }`}>
-                              <Icono className={`h-6 w-6 ${
-                                esta_activo ? 'text-primary' : 'text-muted-foreground'
-                              }`} />
-                            </div>
-                            <div className="text-left flex-1">
-                              <h4 className={`font-semibold text-lg ${
-                                esta_activo ? 'text-primary' : 'text-foreground'
-                              }`}>
-                                {tema_opcion.nombre}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                {tema_opcion.descripcion}
-                              </p>
-                            </div>
-                            {esta_activo && (
-                              <div className="bg-primary text-primary-foreground rounded-full p-1">
-                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {temas.map((tema_opcion) => {
+                          const Icono = tema_opcion.icono;
+                          const esta_activo = tema === tema_opcion.valor;
+                          
+                          return (
+                            <button
+                              key={tema_opcion.valor}
+                              onClick={() => cambiarTema(tema_opcion.valor as any)}
+                              className={`p-5 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
+                                esta_activo
+                                  ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                                  : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`p-2.5 rounded-lg ${
+                                  esta_activo ? 'bg-primary/20' : 'bg-secondary'
+                                }`}>
+                                  <Icono className={`h-5 w-5 ${
+                                    esta_activo ? 'text-primary' : 'text-muted-foreground'
+                                  }`} />
+                                </div>
+                                <div className="text-left flex-1">
+                                  <h4 className={`font-semibold text-base ${
+                                    esta_activo ? 'text-primary' : 'text-foreground'
+                                  }`}>
+                                    {tema_opcion.nombre}
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    {tema_opcion.descripcion}
+                                  </p>
+                                </div>
+                                {esta_activo && (
+                                  <div className="bg-primary text-primary-foreground rounded-full p-1 flex-shrink-0">
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
 
                   <div className="p-4 rounded-lg bg-secondary/30 border border-border">
                     <div className="flex items-start gap-3">
@@ -831,7 +876,7 @@ export default function Configuracion() {
                           Tema Actual: {temas_disponibles.find(t => t.valor === tema)?.nombre}
                         </h4>
                         <p className="text-xs text-muted-foreground">
-                          Tema efectivo: {tema_efectivo === 'claro' ? 'Claro' : tema_efectivo === 'azul' ? 'Azul Oscuro' : 'Oscuro'}
+                          Tema efectivo: {obtenerNombreTemaEfectivo()}
                         </p>
                         <p className="text-xs text-muted-foreground mt-2">
                           Los cambios de tema se aplican inmediatamente y se guardan automáticamente.
