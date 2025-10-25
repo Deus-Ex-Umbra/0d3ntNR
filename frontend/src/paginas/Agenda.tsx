@@ -293,12 +293,12 @@ export default function Agenda() {
           <div className="space-y-2">
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">{mensaje_error}</p>
+              <pre className="text-sm whitespace-pre-wrap font-mono">{mensaje_error}</pre>
             </div>
           </div>
         ),
         variant: 'destructive',
-        duration: 10000,
+        duration: 15000,
       });
     } finally {
       setGuardando(false);
