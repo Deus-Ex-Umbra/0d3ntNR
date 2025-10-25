@@ -7,7 +7,7 @@ import { Label } from '@/componentes/ui/label';
 import { Textarea } from '@/componentes/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/componentes/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/componentes/ui/tabs';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Search, Filter } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, FileText, Loader2, AlertCircle, Edit, Trash2, X, BarChart3, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { finanzasApi, agendaApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/componentes/ui/toaster';
@@ -16,6 +16,7 @@ import { Badge } from '@/componentes/ui/badge';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DatePicker } from '@/componentes/ui/date-picker';
 import { DateTimePicker } from '@/componentes/ui/date-time-picker';
+import { SearchInput } from '@/componentes/ui/search-input';
 import { formatearFechaISO } from '@/lib/utilidades';
 
 interface Movimiento {
@@ -553,15 +554,24 @@ export default function Finanzas() {
     }))
   ];
 
+  const cumpleFiltro = (movimiento: Movimiento): boolean => {
+    if (!filtros.busqueda) return true;
+    
+    const termino_busqueda = filtros.busqueda.toLowerCase();
+    
+    const concepto = movimiento.concepto.toLowerCase();
+    const fecha_formateada = formatearFechaHora(movimiento.fecha).toLowerCase();
+    const monto_formateado = formatearMoneda(movimiento.monto).toLowerCase();
+    
+    return concepto.includes(termino_busqueda) ||
+           fecha_formateada.includes(termino_busqueda) ||
+           monto_formateado.includes(termino_busqueda);
+  };
+
   const agruparMovimientosPorDia = () => {
     const grupos: { [key: string]: Movimiento[] } = {};
     
-    const movimientos_filtrados = reporte?.movimientos.filter(mov => {
-      if (filtros.busqueda) {
-        return mov.concepto.toLowerCase().includes(filtros.busqueda.toLowerCase());
-      }
-      return true;
-    }) || [];
+    const movimientos_filtrados = reporte?.movimientos.filter(cumpleFiltro) || [];
 
     movimientos_filtrados.forEach(mov => {
       const fecha_str = formatearFecha(mov.fecha);
@@ -902,19 +912,12 @@ export default function Finanzas() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="busqueda">Buscar por concepto</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="busqueda"
-                    value={filtros.busqueda}
-                    onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
-                    placeholder="Ej: pago, compra, factura..."
-                    className="pl-10 hover:border-primary/50 focus:border-primary transition-all duration-200"
-                  />
-                </div>
-              </div>
+              <SearchInput
+                valor={filtros.busqueda}
+                onChange={(valor) => setFiltros({ ...filtros, busqueda: valor })}
+                placeholder="Buscar por concepto, fecha o monto..."
+                label="Buscar movimiento"
+              />
 
               {Object.keys(movimientos_agrupados).length === 0 ? (
                 <div className="text-center py-12 space-y-4">
