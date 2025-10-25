@@ -554,24 +554,69 @@ export default function Finanzas() {
     }))
   ];
 
+  const construirTextoCompletoBusqueda = (movimiento: Movimiento): string => {
+    const texto_completo_partes: string[] = [];
+    
+    texto_completo_partes.push(formatearFechaHora(movimiento.fecha));
+    texto_completo_partes.push(movimiento.concepto);
+    texto_completo_partes.push(formatearMoneda(movimiento.monto));
+    
+    return texto_completo_partes.join(' ').toLowerCase();
+  };
+
+  const calcularPuntuacionBusqueda = (movimiento: Movimiento, termino: string): number => {
+    const texto_completo = construirTextoCompletoBusqueda(movimiento);
+    
+    if (!texto_completo.includes(termino)) {
+      return 0;
+    }
+    
+    let puntuacion = 1;
+    
+    const concepto_lower = movimiento.concepto.toLowerCase();
+    if (concepto_lower.includes(termino)) {
+      puntuacion += 10;
+      
+      if (concepto_lower.startsWith(termino)) {
+        puntuacion += 5;
+      }
+    }
+    
+    const fecha_formateada = formatearFechaHora(movimiento.fecha).toLowerCase();
+    if (fecha_formateada.includes(termino)) {
+      puntuacion += 5;
+    }
+    
+    const monto_formateado = formatearMoneda(movimiento.monto).toLowerCase();
+    if (monto_formateado.includes(termino)) {
+      puntuacion += 3;
+    }
+    
+    return puntuacion;
+  };
+
   const cumpleFiltro = (movimiento: Movimiento): boolean => {
     if (!filtros.busqueda) return true;
     
-    const termino_busqueda = filtros.busqueda.toLowerCase();
+    const termino_busqueda = filtros.busqueda.toLowerCase().trim();
+    const puntuacion = calcularPuntuacionBusqueda(movimiento, termino_busqueda);
     
-    const concepto = movimiento.concepto.toLowerCase();
-    const fecha_formateada = formatearFechaHora(movimiento.fecha).toLowerCase();
-    const monto_formateado = formatearMoneda(movimiento.monto).toLowerCase();
-    
-    return concepto.includes(termino_busqueda) ||
-           fecha_formateada.includes(termino_busqueda) ||
-           monto_formateado.includes(termino_busqueda);
+    return puntuacion > 0;
   };
 
   const agruparMovimientosPorDia = () => {
     const grupos: { [key: string]: Movimiento[] } = {};
     
-    const movimientos_filtrados = reporte?.movimientos.filter(cumpleFiltro) || [];
+    let movimientos_filtrados = reporte?.movimientos.filter(cumpleFiltro) || [];
+
+    if (filtros.busqueda) {
+      const termino = filtros.busqueda.toLowerCase().trim();
+      movimientos_filtrados = movimientos_filtrados.sort((a, b) => {
+        const puntuacion_a = calcularPuntuacionBusqueda(a, termino);
+        const puntuacion_b = calcularPuntuacionBusqueda(b, termino);
+        return puntuacion_b - puntuacion_a;
+      });
+    }
 
     movimientos_filtrados.forEach(mov => {
       const fecha_str = formatearFecha(mov.fecha);
@@ -581,9 +626,11 @@ export default function Finanzas() {
       grupos[fecha_str].push(mov);
     });
 
-    Object.keys(grupos).forEach(fecha => {
-      grupos[fecha].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-    });
+    if (!filtros.busqueda) {
+      Object.keys(grupos).forEach(fecha => {
+        grupos[fecha].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+      });
+    }
 
     return grupos;
   };
@@ -915,7 +962,7 @@ export default function Finanzas() {
               <SearchInput
                 valor={filtros.busqueda}
                 onChange={(valor) => setFiltros({ ...filtros, busqueda: valor })}
-                placeholder="Buscar por concepto, fecha o monto..."
+                placeholder="Buscar por fecha, nombre de paciente, concepto o monto..."
                 label="Buscar movimiento"
               />
 
